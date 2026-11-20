@@ -2,8 +2,9 @@
 
 This package contains:
 
-- `index.html` — the ready-to-publish standalone game and email/password account interface.
-- `supabase-schema.sql` — the database tables, row-level security rules, and opt-in leaderboard function.
+- `index.html` — the standalone game and email/password account interface.
+- `supabase-schema.sql` — a combined, one-paste database setup script (tables, row-level security, and opt-in leaderboard function).
+- `supabase-step1-tables-and-security.sql` and `supabase-step2-leaderboard-compact.sql` — the same SQL split into two scripts for staged setup.
 
 The game can run as a guest without any account configuration. Email/password accounts, cloud saves, and the shared leaderboard become active after the Supabase steps below.
 
@@ -34,7 +35,7 @@ Use the project's **publishable** key for the browser. Current Supabase guidance
 1. In the Supabase dashboard, open **Settings → API Keys** or the project's **Connect** dialog.
 2. Copy the **Project URL** shown for the project.
 3. Copy the public **publishable key** (`sb_publishable_...`). If your project only shows the legacy `anon` key, that can work during migration, but prefer the publishable key for a new setup.
-4. The configured `index.html` supplied in this package already contains the Project URL and publishable key provided during setup. No further key editing is needed unless you regenerate either value in Supabase.
+4. The current development build already contains the project's URL and public publishable key. If you deploy this exact build, do not replace them with placeholders. If you create a different Supabase project, replace only those two constants in `index.html` with that project's URL and public publishable key.
 5. Confirm the URL is the project root (`https://odulayjarrfqaggemftw.supabase.co`), not the REST endpoint ending in `/rest/v1/`.
 
 Only use the public browser key here. **Never paste a `sb_secret_...` key, `service_role` key, database password, SMTP password, or any other secret into the HTML or a public repository.** The publishable key is designed to be public; the SQL security policies are what restrict database access. Supabase's current documentation says the older `anon` / `service_role` key pair is being deprecated by the end of 2026, so use the publishable key for a new project.
@@ -68,11 +69,19 @@ Use a nickname on the public leaderboard rather than your full name. Do not use 
 
 ## 6. Known limitations before a public launch
 
-- **The player graph is still based on Lahman 2021.2 and data through the 2020 MLB season.** The app footer says this. A Lahman release with statistics through 2025 now exists, but the embedded graph and puzzle schedule have not yet been rebuilt against it.
+- **The player graph is still based on Lahman 2021.2 and data through the 2020 MLB season.** A separate migration builder is being tested for the SABR/Lahman 2025 CSV release; this current branch has not yet had its embedded player graph rebuilt. The existing 1,100-puzzle schedule is preserved.
 - **Leaderboard scores are client-reported.** Row Level Security prevents one player from editing another player's records and blocks future-dated rows, but it cannot prove that a player's browser really played the puzzle fairly. The leaderboard function returns up to 100 opted-in users per view. Do not advertise this as a cheat-proof competitive ranking. A true anti-cheat leaderboard requires server-side puzzle secrecy and result verification.
 - **The game schedule and answer graph are embedded in the HTML.** A technically curious user can inspect them. Server-side puzzle delivery would be needed to hide answers.
-- **Supabase configuration is required for accounts.** The included files cannot create a Supabase project or obtain your project keys automatically. Until you complete steps 1–3, the website works in guest mode and the account panel explains what is missing. Live authentication, email delivery, SQL policy behavior, and cross-device sync must be verified in your own Supabase project.
+- **Supabase configuration is required for accounts.** The current branch already contains a configured project URL and public publishable key, but the SQL scripts must be installed in that project. Live authentication, email delivery, SQL policy behavior, and cross-device sync must still be verified in the real project.
+- **Unlimited statistics are currently stored locally per guest/account browser profile.** They persist on that browser but are not part of the Supabase cloud-sync tables, so they do not follow the account to a second device.
 - **Custom email delivery is required before accepting signups from the general public.** Supabase's built-in SMTP service currently only sends to pre-authorized project-team addresses. Configure custom SMTP and test a non-team mailbox before sharing the signup page widely. Add a self-service account-deletion process before a broad public launch; this starter currently provides sign-in, sign-out, profile, and recovery, but not in-app account deletion.
+
+## Current branch upgrades
+
+- Completed-game rarity is calculated from the actual successful player sequence, not the example shortest route. Failed guesses are excluded; when the final successful player is adjacent to the target, the target is included as the last route node.
+- Rarity combines player connectivity, the existing player fame score, number of shared team-seasons, and a capped route-length factor. It is an estimate based on the embedded graph, not a live popularity ranking.
+- Unlimited played/win/loss totals, streaks, and guess distribution now persist in local storage, separated between guest and signed-in browser profiles. These stats are not cloud-synced.
+- Added a keyboard skip link and explicit accessible naming/description for the player autocomplete input.
 
 ## Security notes
 
