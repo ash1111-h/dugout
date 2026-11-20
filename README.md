@@ -84,9 +84,18 @@ The current embedded graph is still the original Lahman 2021.2 snapshot through 
 
 The builder preserves existing player IDs, team-season indices, and the published schedule. It writes a separate output file and will refuse to overwrite the source HTML. It does not replace browser QA or the manual release steps.
 
+## 5B. Latest migration results
+
+The pinned 2025 data migration completed successfully in GitHub Actions. The MLB-only preview contains 21,227 unique players (+17,536), 3,264 team-seasons, 221 team labels, and data through 2025. All 1,100 published daily puzzles were preserved and checked to retain a 2–5-link standard route. The route distribution is 308 at 2 links, 463 at 3, 300 at 4, and 29 at 5.
+
+- [Migration QA report](DUGOUT-2025-MIGRATION-RESULTS.md)
+- [Download preview artifact](https://github.com/ash1111-h/dugout/actions/runs/44839480607/artifacts/14679912920)
+
+The artifact contains `index-updated.html` and the CSV source files. It is not yet the committed `index.html`, and it has not been deployed to GitHub Pages. Keep `main` unchanged until browser, Supabase, and mobile acceptance tests pass.
+
 ## 6. Known limitations before a public launch
 
-- **The player graph is still based on Lahman 2021.2 and data through the 2020 MLB season.** A separate migration builder is being tested for the SABR/Lahman 2025 CSV release; this current branch has not yet had its embedded player graph rebuilt. The existing 1,100-puzzle schedule is preserved.
+- **The player graph in the source `index.html` is still based on Lahman 2021.2 and data through the 2020 MLB season.** A separate 2025 migration preview has now been built and audited successfully: 21,227 unique players, 3,264 team-seasons, and all 1,100 published puzzles preserved. The preview is an Actions artifact, not yet merged into the app's source HTML. [Download the preview artifact](https://github.com/ash1111-h/dugout/actions/runs/44839480607/artifacts/14679912920). The existing 1,100-puzzle schedule is preserved.
 - **Leaderboard scores are client-reported.** Row Level Security prevents one player from editing another player's records and blocks future-dated rows, but it cannot prove that a player's browser really played the puzzle fairly. The leaderboard function returns up to 100 opted-in users per view. Do not advertise this as a cheat-proof competitive ranking. A true anti-cheat leaderboard requires server-side puzzle secrecy and result verification.
 - **The game schedule and answer graph are embedded in the HTML.** A technically curious user can inspect them. Server-side puzzle delivery would be needed to hide answers.
 - **Supabase configuration is required for accounts.** The current branch already contains a configured project URL and public publishable key, but the SQL scripts must be installed in that project. Live authentication, email delivery, SQL policy behavior, and cross-device sync must still be verified in the real project.
