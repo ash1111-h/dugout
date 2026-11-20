@@ -33,7 +33,7 @@ def main():
     a = ap.parse_args()
     if a.output.resolve() == a.index.resolve(): ap.error("Output must differ from input index.html.")
     html = a.index.read_text(encoding="utf-8")
-    m = re.search(r"const D = (\{.*?\});\\s*\\n\\(function \\(\\) \\{", html, re.S)
+    m = re.search(r"const D = (\{.*?\});\s*\n\(function \(\) \{", html, re.S)
     if not m: raise SystemExit("Could not locate embedded Dugout data; no file changed.")
     data = json.loads(m.group(1))
     if not all(k in data for k in ("p","ts","tn","sch")): raise SystemExit("Unexpected data schema.")
@@ -100,13 +100,13 @@ def main():
     if json.dumps(data["sch"],separators=(",",":"),ensure_ascii=False)!=schedule:
         raise SystemExit("Daily schedule changed unexpectedly.")
     updated=html[:m.start(1)]+json.dumps(data,separators=(",",":"),ensure_ascii=False)+html[m.end(1):]
-    footer=re.compile(r'<div class="foot">This build uses a Lahman 2021\\.2 roster snapshot.*?</div>',re.S)
+    footer=re.compile(r'<div class="foot">This build uses a Lahman 2021\.2 roster snapshot.*?</div>',re.S)
     replacement=('<div class="foot">Baseball data: SABR Lahman Database, created by Sean Lahman and maintained by '
       'the Society for American Baseball Research (CC BY-SA 3.0). This MLB-only roster includes data through '
       'the 2025 season. Standard links use 10+ games for a team-season; shorter stints count and are labeled. '
       'The 1,100 published daily puzzles are preserved; future dates are generated deterministically.</div>')
     if footer.search(updated): updated=footer.sub(replacement,updated,count=1)
-    elif "SABR Lahman Database" not in updated: updated=updated.replace("</body>",replacement+"\\n</body>")
+    elif "SABR Lahman Database" not in updated: updated=updated.replace("</body>",replacement+"\n</body>")
     a.output.write_text(updated,encoding="utf-8")
     print(f"Players: {len(players):,} (+{len(new_ids):,}); team-seasons: {len(ts):,}; latest MLB season: {max_year}; preserved daily pairs: {len(data['sch']):,}")
     print(f"League filter: {'all leagues' if a.include_other_leagues else ', '.join(sorted(MLB_LEAGUE_IDS))}; wrote {a.output}")
