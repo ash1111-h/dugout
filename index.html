@@ -44,6 +44,9 @@ body {
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--grass); outline-offset: 2px; }
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 1000; padding: 10px 14px; border: 2px solid var(--grass); background: var(--surface); color: var(--ink); transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }
+.main-content { display: flex; flex-direction: column; gap: 18px; }
 
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 230px; }
@@ -133,6 +136,12 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
 .route b { color: var(--ink); font-weight: 600; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .sharebox { width: 100%; font: 13px var(--f-mono); background: var(--bg); border: 1px solid var(--rule); color: var(--ink); padding: 8px; resize: none; }
+.rarity-card { border: 1.5px solid var(--gold); background: var(--surface); padding: 11px 14px; display: flex; flex-direction: column; gap: 4px; }
+.rarity-card .rarity-kicker { color: var(--muted); font: 600 11px var(--f-mono); letter-spacing: .09em; text-transform: uppercase; }
+.rarity-card .rarity-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.rarity-card .rarity-score { font: 800 30px/1 var(--f-display); color: var(--gold); }
+.rarity-card .rarity-tier { font-weight: 700; font-size: 13px; }
+.rarity-card .rarity-note { color: var(--muted); font-size: 11.5px; }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; margin-bottom: 12px; }
 .stats div b { display: block; font: 800 28px/1 var(--f-display); }
@@ -178,7 +187,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
 @media (max-width: 420px) { .acct { align-items:flex-start; } .acct .ibtn { padding:6px 8px; } }
 </style>
 </head><body>
-
+<a class="skip-link" href="#main">Skip to game</a>
 <div class="wrap">
   <header>
     <div class="brand">
@@ -192,6 +201,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
     </div>
   </header>
 
+  <main id="main" class="main-content">
   <div class="acct" id="acct">
     <div class="acct-main"><img id="acctImg" alt="" hidden><div><div class="an" id="acctName">Checking account</div><div class="ad" id="acctDesc" role="status" aria-live="polite" aria-atomic="true"></div></div></div>
     <button type="button" class="ibtn" id="bAuth" aria-expanded="false" aria-controls="authPanel">Sign in</button>
@@ -278,7 +288,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
   <div class="guess" id="guessBox">
     <label for="q" id="gLbl">Name a teammate</label>
     <div id="gChips"></div>
-    <div class="inrow"><input id="q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type a player name" role="combobox" aria-expanded="false" aria-controls="opts" aria-haspopup="listbox" aria-autocomplete="list"></div>
+    <div class="inrow"><input id="q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type a player name" role="combobox" aria-labelledby="gLbl" aria-describedby="msg" aria-expanded="false" aria-controls="opts" aria-haspopup="listbox" aria-autocomplete="list"></div>
     <ul class="opts" id="opts" role="listbox" aria-label="Player suggestions" hidden></ul>
     <div class="msg" id="msg" aria-live="polite"></div>
     <div class="hints">
@@ -292,6 +302,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
   <div id="resultBox" aria-live="polite" aria-atomic="true"></div>
 
   <div class="foot">This build uses a Lahman 2021.2 roster snapshot through the 2020 season and includes 3,691 selected players, not every player who appeared in MLB. The embedded game data does not include 2021–2025 seasons. SABR has published a <a href="https://sabr.org/lahman-database/" target="_blank" rel="noopener noreferrer">Lahman 2025 database</a>, but this build has not yet had its graph rebuilt from that release. Teammates means the same team in the same season; standard links use 10+ games, while shorter stints count and are labeled. There are 1,100 scheduled daily puzzles; after that schedule, Dugout generates more date-seeded puzzles on demand and avoids reusing an earlier matchup while valid unused pairs remain.</div>
+  </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
@@ -476,6 +487,52 @@ function pathBetween(src, dst) {
   while (c !== dst) { let nx = -1; for (const v of adjS(c)) if (d[v] === d[c] - 1 && (nx < 0 || v < nx)) nx = v; if (nx < 0) return null; path.push(nx); c = nx; }
   return path;
 }
+// Rarity is calculated from the route the player actually completed, not pathBetween()'s
+// deterministic shortest-route example. Calibration uses the 1,100 published shortest
+// routes: approximately 47% Common, 31% Uncommon, 11% Rare, 8% Very Rare, 3% Legendary.
+const RARITY_PLAYER_CACHE = new Map();
+function rarityPlayerFactor(i) {
+  if (RARITY_PLAYER_CACHE.has(i)) return RARITY_PLAYER_CACHE.get(i);
+  const degree = adjS(i).size;
+  const connectivity = 1 / (1 + Math.log2(1 + degree));
+  const fame = Math.max(0, Number(P[i].f) || 0);
+  const obscurity = 1 / (1 + Math.log2(1 + fame));
+  const value = 0.68 * connectivity + 0.32 * obscurity;
+  RARITY_PLAYER_CACHE.set(i, value);
+  return value;
+}
+function raritySharedSeasonCount(a, b) {
+  const seasons = new Set(P[a].t.concat(P[a].x));
+  let count = 0;
+  for (const t of P[b].t.concat(P[b].x)) if (seasons.has(t)) count++;
+  return count;
+}
+function scorePathRarity(path) {
+  if (!Array.isArray(path) || path.length < 2) return null;
+  const playerMean = path.reduce((sum, i) => sum + rarityPlayerFactor(i), 0) / path.length;
+  let edgeTotal = 0;
+  for (let k = 1; k < path.length; k++) {
+    const seasons = raritySharedSeasonCount(path[k - 1], path[k]);
+    edgeTotal += 1 / (1 + Math.log2(1 + seasons));
+  }
+  const edgeMean = edgeTotal / (path.length - 1);
+  const lengthFactor = Math.min(1, Math.max(0, (path.length - 2) / 5));
+  const raw = Math.round(100 * (0.55 * playerMean + 0.35 * edgeMean + 0.10 * lengthFactor));
+  const score = Math.max(1, Math.min(99, Math.round(1 + 98 * (raw - 20) / 14)));
+  let tier = 'Common';
+  if (score >= 92) tier = 'Legendary';
+  else if (score >= 85) tier = 'Very Rare';
+  else if (score >= 78) tier = 'Rare';
+  else if (score >= 64) tier = 'Uncommon';
+  return { score, tier };
+}
+function actualSolvedPath() {
+  if (!G || !G.won) return null;
+  const path = [G.start];
+  for (const e of G.log) if (e.ok) path.push(e.pid);
+  if (path[path.length - 1] !== G.target) path.push(G.target);
+  return path;
+}
 // ---UI---
 if (typeof document === 'undefined') return;
 const $ = id => document.getElementById(id);
@@ -626,6 +683,26 @@ function pruneLocalGames() {
 }
 if (pruneLocalGames()) save(store);
 let mode = 'daily', G = null, opts = [], act = -1, run = 0;
+// Unlimited stats are stored locally and separately for guest and each signed-in account.
+function emptyFreeStats() { return { played: 0, wins: 0, losses: 0, current: 0, best: 0, distribution: [0,0,0,0,0,0] }; }
+function readFreeStats() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ACTIVE_STORE_KEY + '-unlimited-stats-v1') || 'null');
+    if (!raw || raw.v !== 1) return emptyFreeStats();
+    const safe = v => Number.isSafeInteger(v) && v >= 0 ? v : 0;
+    const distribution = Array.isArray(raw.distribution) && raw.distribution.length === 6 ? raw.distribution.map(safe) : [0,0,0,0,0,0];
+    const wins = safe(raw.wins), losses = safe(raw.losses), played = safe(raw.played);
+    return { played: Math.max(played, wins + losses), wins, losses, current: Math.min(safe(raw.current), wins), best: Math.min(safe(raw.best), wins), distribution };
+  } catch (e) { return emptyFreeStats(); }
+}
+function writeFreeStats() {
+  try {
+    localStorage.setItem(ACTIVE_STORE_KEY + '-unlimited-stats-v1', JSON.stringify({ v: 1, ...freeStats }));
+    return true;
+  } catch (e) { return false; }
+}
+let freeStats = readFreeStats();
+run = freeStats.current;
 
 // ---------- Supabase email/password accounts and cloud progress ----------
 // Configure the URL + PUBLIC publishable key below. Never put a secret/service-role key here.
@@ -682,6 +759,7 @@ function switchLocalStore(userId) {
   save(store);
   ACTIVE_STORE_KEY = nextKey;
   store = cleanStore(readStoreKey(nextKey));
+  freeStats = readFreeStats(); run = freeStats.current;
   pruneLocalGames();
   save(store);
   // Guest and account data are kept separately on shared devices.
@@ -1231,7 +1309,20 @@ function guess(pid) {
   if (ok) G.hintMsg = '';
   if (ok && (pid === G.target || adjA(pid).has(G.target))) { G.done = true; G.won = true; }
   else if (G.log.length >= MAXA) { G.done = true; G.won = false; }
-  if (G.done && G.mode === 'free') run = G.won ? run + 1 : 0;
+  if (G.done && G.mode === 'free') {
+    freeStats.played++;
+    if (G.won) {
+      freeStats.wins++;
+      freeStats.current++;
+      freeStats.best = Math.max(freeStats.best, freeStats.current);
+      freeStats.distribution[Math.min(G.log.length, 6) - 1]++;
+    } else {
+      freeStats.losses++;
+      freeStats.current = 0;
+    }
+    run = freeStats.current;
+    writeFreeStats();
+  }
   persist(); $('q').value = ''; closeOpts(); say(''); render();
 }
 function say(t) { $('msg').textContent = t; }
@@ -1300,7 +1391,10 @@ function render() {
   else {
     const grid = G.log.map(e => e.ok ? '\ud83d\udfe9' : '\ud83d\udfe5').join('') + (G.won ? '\ud83c\udfe0' : '');
     const score = (G.won ? G.log.length : 'X') + '/' + MAXA;
-    const sharetxt = 'Dugout ' + (G.mode === 'daily' ? '#' + dayNumOf(G.id) + ' ' : '') + score + (G.hints ? ' \ud83d\udca1' + (G.hints > 1 ? ' x' + G.hints : '') : '') + '\n' + grid;
+    const solvedPath = actualSolvedPath();
+    const rarity = solvedPath ? scorePathRarity(solvedPath) : null;
+    const rarityShare = rarity ? ' | ' + rarity.tier + ' path (' + rarity.score + '/99)' : '';
+    const sharetxt = 'Dugout ' + (G.mode === 'daily' ? '#' + dayNumOf(G.id) + ' ' : '') + score + (G.hints ? ' \ud83d\udca1' + (G.hints > 1 ? ' x' + G.hints : '') : '') + rarityShare + '\n' + grid;
     let route = '';
     const path = pathBetween(G.start, G.target);
     if (path) {
@@ -1312,7 +1406,8 @@ function render() {
     if (G.mode === 'free' && run > 1) foot = '<div class="route">Run: ' + run + ' puzzles in a row.</div>';
     rb.innerHTML = '<div class="result ' + (G.won ? 'win' : 'loss') + '"><h2>' + (G.won ? 'Safe at home' : 'Out at the plate') + '</h2>' +
       '<div>' + (G.won ? 'Connected in ' + G.log.length + ' of ' + MAXA + ' guesses' + (G.hints ? ' with ' + G.hints + ' hint' + (G.hints === 1 ? '' : 's') : '') + '.' : 'You ran out of guesses.') + '</div>' +
-      '<div class="grid">' + grid + '</div>' + route +
+      '<div class="grid">' + grid + '</div>' +
+      (rarity ? '<div class="rarity-card"><div class="rarity-kicker">Your path rarity</div><div class="rarity-line"><span class="rarity-score">' + rarity.score + '/99</span><span class="rarity-tier">' + rarity.tier + '</span></div><div class="rarity-note">Based on the successful route you played, including its teammate connections — not the shortest possible route.</div></div>' : '') + route +
       '<div class="row"><button type="button" class="btn" id="bShare">Copy result</button>' + (G.mode === 'free' ? '<button type="button" class="btn ghost" id="bAgain">Next puzzle</button>' : '') + (G.arch ? '<button type="button" class="btn ghost" id="bToday">Back to today</button>' : '') + '</div>' + foot +
       '<textarea class="sharebox" id="shareTxt" rows="2" readonly hidden></textarea></div>';
     $('bShare').onclick = () => {
@@ -1327,8 +1422,12 @@ function render() {
 }
 function renderStats() {
   const s = computeStats(store.days, TODAY), mx = Math.max.apply(null, s.d.concat([1]));
+  const f = freeStats, fmx = Math.max.apply(null, f.distribution.concat([1]));
   $('statsP').innerHTML = '<h2>Daily stats</h2><div class="stats"><div><b>' + s.p + '</b><span>Played</span></div><div><b>' + (s.p ? Math.round(100 * s.w / s.p) : 0) + '</b><span>Win %</span></div><div><b>' + s.s + '</b><span>Streak</span></div><div><b>' + s.m + '</b><span>Best</span></div></div><div class="dist">' +
-    s.d.map((v, i) => '<span>' + (i + 1) + '</span><i style="width:' + Math.max(8, Math.round(100 * v / mx)) + '%">' + v + '</i>').join('') + '</div>';
+    s.d.map((v, i) => '<span>' + (i + 1) + '</span><i style="width:' + Math.max(8, Math.round(100 * v / mx)) + '%">' + v + '</i>').join('') + '</div>' +
+    '<h2 style="margin-top:18px">Unlimited stats</h2><div class="stats"><div><b>' + f.played + '</b><span>Played</span></div><div><b>' + (f.played ? Math.round(100 * f.wins / f.played) : 0) + '</b><span>Win %</span></div><div><b>' + f.current + '</b><span>Current run</span></div><div><b>' + f.best + '</b><span>Best run</span></div></div>' +
+    '<div class="dist">' + f.distribution.map((v, i) => '<span>' + (i + 1) + '</span><i style="width:' + Math.max(8, Math.round(100 * v / fmx)) + '%">' + v + '</i>').join('') + '</div>' +
+    '<p class="auth-note">Unlimited totals are saved separately for this browser’s guest profile and each signed-in account. They do not sync to Supabase yet.</p>';
 }
 
 // ---------- autocomplete ----------
