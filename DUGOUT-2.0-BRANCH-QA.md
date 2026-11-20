@@ -20,8 +20,9 @@
 
 ## Remaining before a public release
 
-- [ ] Download and supply the official SABR/Lahman 2025 CSVs (People, Appearances, Teams; optional AllstarFull, AwardsPlayers, HallOfFame) and run the included migration builder. The 2025 roster migration has **not** been performed.
-- [ ] Audit the migrated graph and schedule, and test autocomplete/generation performance with the expanded dataset.
+- [x] Retrieve the SABR/Lahman 2025 CSVs (People, Appearances, Teams, AllstarFull, AwardsPlayers, HallOfFame) from a pinned, byte-for-byte mirror of the official release and run the migration builder. The official SABR page identifies the 1871–2025 CSV release; source attribution and CC BY-SA 3.0 are preserved.
+- [x] Audit the migrated graph and published schedule: 21,227 unique players, 3,264 team-seasons, 221 team labels, latest season 2025; all 1,100 original pairs preserved and valid. Route distribution after migration: 308 puzzles at 2 links, 463 at 3, 300 at 4, and 29 at 5; no out-of-range routes.
+- [x] Check autocomplete search performance against the 21,227-player data in Node: ~0.4–0.7 ms per search for representative queries on this test environment. This is not a real-phone benchmark.
 - [ ] Run the SQL in the actual Supabase project and verify tables, RLS policies, function, and grants live.
 - [ ] Configure custom SMTP and test signup confirmation and password reset to a non-team email address.
 - [ ] Deploy a preview build and test guest play, daily/archive, Unlimited stats, account sign-in/out, refresh persistence, cloud sync on a second device, and leaderboard opt-in/out.
@@ -33,4 +34,4 @@
 
 ## Verification boundaries
 
-The current puzzle graph and generated-date simulation were checked directly from the repository's embedded data. The local migration-builder implementation passed synthetic CSV tests for both MLB-only default behavior and explicit all-leagues mode. The committed repository copy has been syntax-reviewed and its parsing/footer regex corrected, but still needs to be run against the supplied CSV files. The browser UI changes were statically inspected but not yet exercised in a deployed browser session. The Supabase SQL has not been run against the live project. No real signup email, cross-device sync, account deletion, or physical-device test is claimed.
+The migrated puzzle graph was checked in GitHub Actions against all 1,100 published pairs, with all routes remaining 2–5 links. The 200-day future-generation simulation and the original graph checks were also completed. The committed migration builder ran successfully against the real 2025 People, Appearances, and Teams files. The pinned mirror commit identifies itself as an unedited byte-for-byte copy of SABR's official 2025 CSV release. The output was audited in GitHub Actions and downloaded for local inspection. The migrated inline JavaScript passed Node syntax checking and autocomplete search was microbenchmarked locally. The browser UI changes have not yet been exercised in a deployed browser session. The Supabase SQL has not been run against the live project. No real signup email, cross-device sync, account deletion, or physical-device test is claimed.
