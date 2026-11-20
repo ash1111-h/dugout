@@ -67,6 +67,23 @@ Alternative: use Netlify's static-site deploy flow. Upload the package folder co
 
 Use a nickname on the public leaderboard rather than your full name. Do not use a school name, phone number, home location, or other identifying detail. The signed-in community leaderboard reveals only that nickname and the scores you opt into sharing; it does not display email addresses or persistent account IDs.
 
+## 5A. Optional roster refresh to Lahman 2025
+
+The current embedded graph is still the original Lahman 2021.2 snapshot through 2020. The repository includes a migration builder at `tools/build_dugout_database.py`, but the migration has **not** been run on the live dataset yet.
+
+1. Download the official SABR/Lahman 2025 CSV release from <https://sabr.org/lahman-database/>.
+2. Extract `People.csv`, `Appearances.csv`, and `Teams.csv`. Optional files: `AllstarFull.csv`, `AwardsPlayers.csv`, and `HallOfFame.csv`.
+3. Run from the repository folder:
+
+   ```bash
+   python tools/build_dugout_database.py index.html People.csv Appearances.csv Teams.csv --allstar AllstarFull.csv --awards AwardsPlayers.csv --hof HallOfFame.csv --output index-updated.html
+   ```
+
+4. The default import includes MLB historical major-league league IDs only (NA, NL, AA, UA, PL, FL, AL). Negro Leagues and other league records are excluded by default; only use `--include-other-leagues` if you intentionally want a broader, separately explained historical dataset.
+5. Run the audit and graph/schedule checks against `index-updated.html`. Keep the original `index.html` and all 1,100 published daily puzzles unchanged until the migrated output passes the browser and puzzle regression tests.
+
+The builder preserves existing player IDs, team-season indices, and the published schedule. It writes a separate output file and will refuse to overwrite the source HTML. It does not replace browser QA or the manual release steps.
+
 ## 6. Known limitations before a public launch
 
 - **The player graph is still based on Lahman 2021.2 and data through the 2020 MLB season.** A separate migration builder is being tested for the SABR/Lahman 2025 CSV release; this current branch has not yet had its embedded player graph rebuilt. The existing 1,100-puzzle schedule is preserved.
