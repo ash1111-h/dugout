@@ -1,0 +1,113 @@
+name: Dugout 2.0 — Lahman 2025 migration preview
+
+on:
+  push:
+    branches: [dugout-2.0-upgrade]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download pinned SABR Lahman 2025 CSV source
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://raw.githubusercontent.com/cbwinslow/lahman-database-csv/0377e0b8d3f1b8f6710cc4faee7d842d0e81f344/data"
+          for file in People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv readme2025.txt; do
+            curl --fail --location --retry 4 --retry-delay 2 "$BASE/$file" --output "$file"
+          done
+          echo "Downloaded source files:"
+          wc -c People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv readme2025.txt
+          grep -m1 -E '^The SABR Lahman Baseball Database' readme2025.txt
+
+      - name: Build MLB-only 2025 roster without overwriting source
+        run: |
+          python tools/build_dugout_database.py index.html People.csv Appearances.csv Teams.csv \
+            --allstar AllstarFull.csv --awards AwardsPlayers.csv --hof HallOfFame.csv \
+            --output index-updated.html
+
+      - name: Audit migrated graph and preserve published daily puzzles
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:index.html > index-main.html
+          python - <<'PY'
+          import json,re,collections,sys
+          def load(path):
+              s=open(path,encoding="utf-8").read()
+              m=re.search(r"const D = (\{.*?\});\s*\n\(function \(\) \{",s,re.S)
+              if not m: raise SystemExit(f"Cannot parse embedded data in {path}")
+              return json.loads(m.group(1))
+          old,new=load("index-main.html"),load("index-updated.html")
+          p=new["p"]; ids=[x["i"] for x in p]
+          if len(ids)!=len(set(ids)): raise SystemExit("Duplicate player IDs")
+          idset=set(ids); ts=new["ts"]
+          for x in p:
+              if len(x["t"])!=len(set(x["t"])) or len(x["x"])!=len(set(x["x"])) or set(x["t"])&set(x["x"]):
+                  raise SystemExit(f"Duplicate/overlap team-season for {x['i']}")
+              if any(not isinstance(t,int) or t<0 or t>=len(ts) for t in x["t"]+x["x"]):
+                  raise SystemExit(f"Bad team-season index for {x['i']}")
+          if new["sch"]!=old["sch"]: raise SystemExit("Published daily schedule changed")
+          if len(new["sch"])!=1100: raise SystemExit(f"Expected 1,100 published pairs, found {len(new['sch'])}")
+          if any(a not in idset or b not in idset for a,b in new["sch"]): raise SystemExit("Invalid scheduled player ID")
+          pairkeys=[tuple(sorted(pair)) for pair in new["sch"]]
+          if len(pairkeys)!=len(set(pairkeys)): raise SystemExit("Duplicate scheduled matchup")
+          rosters=collections.defaultdict(list)
+          for i,x in enumerate(p):
+              for t in x["t"]: rosters[t].append(i)
+          adj=[set() for _ in p]
+          for members in rosters.values():
+              for a in members: adj[a].update(b for b in members if b!=a)
+          idx={x["i"]:i for i,x in enumerate(p)}
+          from collections import deque
+          lengths=collections.Counter()
+          for a,b in new["sch"]:
+              start,target=idx[a],idx[b]
+              dist={start:0}; q=deque([start])
+              while q and target not in dist:
+                  u=q.popleft()
+                  if dist[u]>=5: continue
+                  for v in adj[u]:
+                      if v not in dist:
+                          dist[v]=dist[u]+1; q.append(v)
+              d=dist.get(target)
+              if d is None or not 2<=d<=5: raise SystemExit(f"Invalid route {a} -> {b}: {d}")
+              lengths[d]+=1
+          print(json.dumps({
+            "players":len(p),"players_added_vs_main":len(idset-set(x["i"] for x in old["p"])),
+            "team_seasons":len(ts),"team_labels":len(new["tn"]),
+            "daily_pairs_preserved":len(new["sch"]),"route_length_distribution":dict(lengths),
+            "max_player_season":max(x["b"] for x in p),
+            "mlb_leagues_only":True
+          },indent=2))
+          PY
+
+      - name: Upload migrated preview and audit summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dugout-2025-migration-preview
+          path: |
+            index-updated.html
+            People.csv
+            Appearances.csv
+            Teams.csv
+            readme2025.txt
+          if-no-files-found: error
+          retention-days: 14
