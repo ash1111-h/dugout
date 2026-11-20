@@ -33,4 +33,4 @@
 
 ## Verification boundaries
 
-The current puzzle graph and generated-date simulation were checked directly from the repository's embedded data. The builder passed synthetic CSV tests. The browser UI changes were statically inspected but not yet exercised in a deployed browser session. The Supabase SQL has not been run against the live project. No real signup email, cross-device sync, account deletion, or physical-device test is claimed.
+The current puzzle graph and generated-date simulation were checked directly from the repository's embedded data. The local migration-builder implementation passed synthetic CSV tests for both MLB-only default behavior and explicit all-leagues mode. The committed repository copy has been syntax-reviewed and its parsing/footer regex corrected, but still needs to be run against the supplied CSV files. The browser UI changes were statically inspected but not yet exercised in a deployed browser session. The Supabase SQL has not been run against the live project. No real signup email, cross-device sync, account deletion, or physical-device test is claimed.
