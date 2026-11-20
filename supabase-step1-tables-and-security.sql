@@ -123,4 +123,4 @@ create policy "Players can update their own non-future Dugout results"
     and puzzle_date <= (now() at time zone 'America/Los_Angeles')::date
   );
 
--- Base setup complete. Run supabase-step2-leaderboard.sql next.
+-- Base setup complete. The combined supabase-schema.sql includes the leaderboard function next.
