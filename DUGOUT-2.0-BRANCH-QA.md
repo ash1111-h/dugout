@@ -1,37 +1,84 @@
 # Dugout 2.0 branch — implementation and verification status
 
-**Branch:** `dugout-2.0-upgrade`  
-**Base:** the current `main` snapshot as of 2026-11-20  
-**Important:** this is a development branch. The live GitHub Pages site and `main` have not been changed.
+**Branch:** `dugout-2.0-upgrade` · **Last verified:** 2026-11-21 · **Status: draft — not ready to merge** (live Supabase, SMTP, account deletion and real-device checks are still open, see below).
+The live site and `main` have not been changed.
 
-## Completed in this branch
+## Completed in this branch (earlier work, preserved)
 
-- [x] Created an isolated upgrade branch; main remains untouched.
-- [x] Added actual-play-path rarity to the completed-game screen and share text. It uses successful guesses from the player's log, excludes failed guesses, and appends the target when the win is by adjacency. It does not use the shortest-path example shown elsewhere on the result screen.
-- [x] Calibrated rarity score bands against the 1,100 published puzzle shortest paths. The original thresholds put every puzzle in Common or Uncommon; the revised scale produces a more useful five-tier distribution on that reference set. Rarity remains an estimate from graph topology/fame, not a global player popularity statistic.
-- [x] Added persistent Unlimited played/win/loss totals, current/best run, and guess-count distribution. Stored separately for guest and each signed-in account's browser profile. These totals are local-only and do not sync to Supabase.
-- [x] Added a keyboard skip-to-game link and explicit accessible name/description for the player autocomplete field.
-- [x] Added a combined `supabase-schema.sql` so setup can be run in one SQL Editor operation. Kept the two staged SQL scripts and corrected their cross-reference.
-- [x] Updated README for the existing project URL/public publishable key and the new game features.
-- [x] Improved the Lahman migration builder: MLB-only by default; other/Negro leagues require an explicit opt-in; checks the filtered appearance coverage reaches 2025; preserves IDs and the existing daily schedule; never overwrites its input file.
-- [x] Synthetic migration tests passed for both MLB-only default behavior and explicit all-leagues mode.
-- [x] Revalidated embedded data: 3,691 players, 2,942 team-seasons, 136 team labels, 1,100 daily pairs; no invalid daily refs, duplicate pairs, unreachable pairs, duplicate IDs, or 24-day cooldown violations.
-- [x] Simulated days 1,101–1,300: 200/200 generated; no repeated unordered pair; no cooldown relaxation required.
+- [x] Actual-play-path rarity (failed guesses excluded), shown in results and share text; bands calibrated on the 1,100 published routes.
+- [x] Persistent local Unlimited stats (played/wins/losses/current/best run/distribution), separate keys for guest and each account. Local only; not cloud-synced.
+- [x] Skip-to-game link; accessible name/description on the player combobox.
+- [x] Combined `supabase-schema.sql` plus the two staged scripts.
+- [x] Lahman migration builder (MLB-only by default) and CI workflow.
 
-## Remaining before a public release
+## Completed in this round
 
-- [x] Retrieve the SABR/Lahman 2025 CSVs (People, Appearances, Teams, AllstarFull, AwardsPlayers, HallOfFame) from a pinned, byte-for-byte mirror of the official release and run the migration builder. The official SABR page identifies the 1871–2025 CSV release; source attribution and CC BY-SA 3.0 are preserved.
-- [x] Audit the migrated graph and published schedule: 21,227 unique players, 3,264 team-seasons, 221 team labels, latest season 2025; all 1,100 original pairs preserved and valid. Route distribution after migration: 308 puzzles at 2 links, 463 at 3, 300 at 4, and 29 at 5; no out-of-range routes.
-- [x] Check autocomplete search performance against the 21,227-player data in Node: ~0.4–0.7 ms per search for representative queries on this test environment. This is not a real-phone benchmark.
-- [ ] Run the SQL in the actual Supabase project and verify tables, RLS policies, function, and grants live.
-- [ ] Configure custom SMTP and test signup confirmation and password reset to a non-team email address.
-- [ ] Deploy a preview build and test guest play, daily/archive, Unlimited stats, account sign-in/out, refresh persistence, cloud sync on a second device, and leaderboard opt-in/out.
-- [ ] Add a secure self-service account deletion flow before public signup.
-- [ ] Decide whether Unlimited stats should sync across devices; current implementation is browser-local.
-- [ ] Perform physical iPhone/iPad testing and keyboard/screen-reader acceptance checks.
-- [ ] Review anti-cheat expectations: answer graph and puzzle schedule remain embedded in the static page, and leaderboard scores are client-reported.
-- [ ] Only after all tests pass, merge the development branch into main to publish.
+- [x] **2025 roster integrated into the playable `index.html`**: 21,227 players, 3,104 team-seasons, 148 team labels, 1871–2025. (The earlier report's 3,264 / 221 counted duplicate league-suffixed labels; see the migration report addendum.)
+- [x] **Builder fame fix.** Fame for new players was on a different scale from the game's existing fame (legacy median 1.7 vs about 15), which would have made about 95% of generated endpoints obscure journeymen. Fame is now calibrated onto the legacy scale; 366 legacy players with extended careers were refreshed upward only (Ohtani 0.3 to 6.3, Soto 0.4 to 5.4).
+- [x] **Builder label fix.** Original team-season labels are reused instead of gaining a league suffix, so no legacy team-season changes name (audit: 0 dropped).
+- [x] **New `r` field** (regular seasons: 100+ G, 20+ GS or 50+ pitching appearances in a season). Fame accumulates over a career, so the old `minF`/`minA` floors can never admit a rookie; the modern lanes use `r` instead.
+- [x] **Era-lane generator** used by Unlimited and generated Daily puzzles: classic (original recipes, unchanged), historical (career ended by 1999), veteran (active 2020+, debuted earlier), rookie (first MLB appearance 2020+). Unlimited mix 35/15/20/30; Daily 60/15/10/15.
+- [x] **Daily shuffle.** The original `D.sch` (1,100 pairs) is untouched. 407 modern-era pairs were swapped into days 5–1100 (`D.ovr`); the 407 displaced originals were relocated, none discarded, to days 1101–1507 (`D.ext`). Days 1–4 are never changed. Generated days start at day 1508 (2031-01-04).
+- [x] Tests added in `tests/` and CI updated (see below).
 
-## Verification boundaries
+## Test results (all run on 2026-11-21 against this branch)
 
-The migrated puzzle graph was checked in GitHub Actions against all 1,100 published pairs, with all routes remaining 2–5 links. The 200-day future-generation simulation and the original graph checks were also completed. The committed migration builder ran successfully against the real 2025 People, Appearances, and Teams files. The pinned mirror commit identifies itself as an unedited byte-for-byte copy of SABR's official 2025 CSV release. The output was audited in GitHub Actions and downloaded for local inspection. The migrated inline JavaScript passed Node syntax checking and autocomplete search was microbenchmarked locally. The browser UI changes have not yet been exercised in a deployed browser session. The Supabase SQL has not been run against the live project. No real signup email, cross-device sync, account deletion, or physical-device test is claimed.
+| Check | Result |
+|---|---|
+| Player IDs unique; all 3,691 legacy IDs preserved | PASS |
+| Team-season refs valid, no overlap, a/b match seasons, no empty careers | PASS |
+| No legacy team-season dropped | PASS (0 dropped) |
+| Original schedule identical to `main` (1,100 pairs); no duplicates; valid refs | PASS |
+| Original routes 308/463/300/29 (2/3/4/5 links) | PASS |
+| Effective schedule (1,507 days): no duplicate pairs, every original pair plays once, all overrides routable (2-5 links: 106/121/140/40) | PASS |
+| 24-day player cooldown across effective schedule | PASS with 3 unavoidable exceptions at the end of the relocated block |
+| All 16,454 players with a solid link in one connected component | PASS (4,773 cameo-only players can be guessed but never appear as endpoints) |
+| Embedded data reproduces byte-for-byte from the pinned Lahman CSVs plus `tools/` | PASS (run locally; CI step added, not yet run on GitHub) |
+| JavaScript syntax (`node --check` on inline script, tests, tools) | PASS |
+| Headless Chromium, desktop 1280x800 and iPhone-sized 390x844 (touch emulation): load with no JS errors, Daily #2 matches schedule, autocomplete (incl. modern players), wrong guess, full win, rarity card, share text, rarity identical with and without failed guesses, short-stint label, invalid input, Unlimited win and loss, stats persistence after reload, guest isolation from another profile key, 60 in-browser Unlimited puzzles valid, skip link and combobox attributes, attribution | PASS (all assertions, both viewports) |
+| No horizontal overflow at 390 px; screenshots reviewed by eye | PASS |
+| No secret/service-role key in `index.html` (only the publishable key) | PASS |
+
+### Modern-player coverage (real simulation output, `node tests/coverage_sim.js index.html 400 1100`)
+
+"Active 2020-2025" = last MLB season 2020 or later. "Recent debut" = first MLB appearance in 2020 or later; this is a games-based proxy, **not** an official MLB rookie designation.
+
+| 400 Unlimited puzzles per difficulty | Easy | Medium | Hard |
+|---|---|---|---|
+| Solvable, valid route | 100% | 100% | 100% |
+| At least one player active 2020-2025 | 60.8% | 69.5% | 55.0% |
+| Two players active 2020-2025 | 44.5% | 4.8% | 0.0% |
+| At least one recent debut | 36.5% | 31.5% | 27.8% |
+| Two recent debuts | 9.0% | 4.0% | 0.0% |
+| At least one debut in 2024-2025 | 9.8% | 10.3% | 4.3% |
+| Endpoint slots that are recent debuts | 22.8% | 17.8% | 13.9% |
+| Pre-2000-only puzzles | 21.3% | 13.8% | 23.0% |
+
+Daily schedule:
+
+| | Original 1,100 | Effective prebuilt (1,507 days) | Generated days 1508-2607 |
+|---|---|---|---|
+| At least one player active 2020-2025 | 30.5% | 49.2% | 52.7% |
+| At least one recent debut | 0% | 14.7% (221 days) | 18.2% |
+| At least one debut in 2024-2025 | 0% | 3.6% | 4.4% |
+| Pre-2000-only | 9.5% | 6.9% | 18.9% |
+
+Route lengths are unchanged by difficulty (Easy 2-3, Medium 3-4, Hard 4-5). Easy shows many two-modern puzzles because modern rosters are dense and Easy only allows 2-3 links.
+
+## Known limitations
+
+- Rookie-lane endpoints are chosen by games played, not fame, so some are lesser-known (for example day 5: Declan Cronin to Pete Kozma). Tighten `modernEligible()` if you want more familiar names.
+- The modern share is high by design; the original schedule was 30.5% and is now 49.2% on prebuilt days. Tune `ERA_MIX` or the swap share (default 0.35) in `tools/build_daily_overrides.js`.
+- The 2020 season was 60 games, so few 2020 players reach the regular-season bar.
+- Autocomplete and generation timings were measured in headless Chromium and Node on a server, **not on a phone**.
+
+## Not verified (still open)
+
+- [ ] SQL run against the live Supabase project, RLS behavior, leaderboard reads/writes, auth, email/SMTP, account deletion. The test sandbox cannot reach supabase.co (proxy returned 403), so nothing was run against it. Only the offline-degradation path was tested (Supabase blocked: page loads and guest play works).
+- [ ] Guest/account stats separation when actually signing in (only the guest key and an unrelated seeded key were exercised).
+- [ ] Cloud sync on a second device; leaderboard opt-in/out.
+- [ ] Physical iPhone/iPad, Safari, Firefox and screen-reader testing. Chromium emulation only.
+- [ ] GitHub Actions run of the updated workflow (steps were run locally; the workflow itself has not executed on GitHub).
+- [ ] Leaderboard remains client-reported and not cheat-proof; the puzzle schedule is embedded in the static page.
+
+Do not merge or deploy until the open items are done or accepted.

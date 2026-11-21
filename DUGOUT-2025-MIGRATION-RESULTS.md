@@ -67,3 +67,11 @@ The artifact is also available in the current ChatGPT session as `dugout-2025-mi
 - Add self-service account deletion before public signup.
 - Review anti-cheat/leaderboard assumptions.
 - Only after those checks pass, merge the development branch into main.
+
+
+## Addendum (2026-11-21): corrections after integration
+
+- **Counts.** The 3,264 team-seasons / 221 labels above included duplicate league-suffixed labels for 19th-century teams that already existed in the game. The builder now keeps the original label, giving **3,104 team-seasons (3,102 referenced) and 148 labels**. Players (21,227), career span (1871-2025) and the 1,100 pairs/route distribution (308/463/300/29) are unchanged.
+- **Fame calibration.** New players' fame is mapped onto the game's existing scale using the 3,325 legacy players whose careers are unchanged; 366 legacy players with extended careers were raised (never lowered). The previous builder output used an incompatible scale.
+- **New `r` field** on every player (regular seasons) and a `D.ovr`/`D.ext` daily override/relocation table written by `tools/build_daily_overrides.js`. `D.sch` is unchanged.
+- **Reproduce:** `python tools/build_dugout_database.py <main index.html> ... --output out.html`, then `python tools/splice_data.py out.html index.html rebuilt.html`, then `node tools/build_daily_overrides.js rebuilt.html 0.35`; the data object must equal the one in `index.html` (CI checks this).

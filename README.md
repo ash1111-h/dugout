@@ -95,7 +95,7 @@ The artifact contains `index-updated.html` and the CSV source files. It is not y
 
 ## 6. Known limitations before a public launch
 
-- **The player graph in the source `index.html` is still based on Lahman 2021.2 and data through the 2020 MLB season.** A separate 2025 migration preview has now been built and audited successfully: 21,227 unique players, 3,264 team-seasons, and all 1,100 published puzzles preserved. The preview is an Actions artifact, not yet merged into the app's source HTML. [Download the preview artifact](https://github.com/ash1111-h/dugout/actions/runs/44839480607/artifacts/14679912920). The existing 1,100-puzzle schedule is preserved.
+- **The player graph now uses the SABR Lahman 2025 database** (21,227 players, data through the 2025 season). The original 1,100 daily puzzles are all kept; some were moved later to make room for modern-era puzzles (see "Modern-era mix and tests" below and `DUGOUT-2025-MIGRATION-RESULTS.md`).
 - **Leaderboard scores are client-reported.** Row Level Security prevents one player from editing another player's records and blocks future-dated rows, but it cannot prove that a player's browser really played the puzzle fairly. The leaderboard function returns up to 100 opted-in users per view. Do not advertise this as a cheat-proof competitive ranking. A true anti-cheat leaderboard requires server-side puzzle secrecy and result verification.
 - **The game schedule and answer graph are embedded in the HTML.** A technically curious user can inspect them. Server-side puzzle delivery would be needed to hide answers.
 - **Supabase configuration is required for accounts.** The current branch already contains a configured project URL and public publishable key, but the SQL scripts must be installed in that project. Live authentication, email delivery, SQL policy behavior, and cross-device sync must still be verified in the real project.
@@ -131,3 +131,9 @@ The roster snapshot embedded in this version originated from Lahman Baseball Dat
 - Supabase API keys and browser security: <https://supabase.com/docs/guides/getting-started/api-keys>
 - Supabase email/password authentication: <https://supabase.com/docs/guides/auth/passwords>
 - Supabase redirect URL configuration: <https://supabase.com/docs/guides/auth/redirect-urls>
+
+## Modern-era mix and tests (Dugout 2.0)
+
+- Unlimited and generated Daily puzzles draw from four era lanes (classic, historical, veteran active since 2020, and "recent debut" = first MLB appearance in 2020 or later; this is a games-based proxy, not an official rookie designation). Weights are `ERA_MIX` in `index.html`.
+- The original 1,100 daily pairs are kept in `D.sch`. Some days 5-1100 were swapped for modern-era pairs (`D.ovr`) and the displaced originals play on days 1101-1507 (`D.ext`). Regenerate with `node tools/build_daily_overrides.js index.html 0.35`.
+- Tests (Node 20+, no dependencies except Playwright for the browser test): `node tests/audit_db.js index.html origin/main`, `node tests/coverage_sim.js index.html 400 1100`, `node tests/browser_test.js` (needs `playwright` with Chromium installed). Results are in `DUGOUT-2.0-BRANCH-QA.md`.
