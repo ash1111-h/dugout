@@ -1,8 +1,8 @@
-name: Dugout 2.0 — Lahman 2025 migration preview
+name: Dugout checks (data, schedule, game)
 
 on:
   push:
-    branches: [dugout-2.0-upgrade]
+    branches: [main, 'dugout-*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -37,16 +37,16 @@ jobs:
           wc -c People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv readme2025.txt
           grep -m1 -E '^The SABR Lahman Baseball Database' readme2025.txt
 
-      - name: Rebuild the roster from main's original data (reproducibility check)
+      - name: Rebuild the roster from the pre-2.0 page (reproducibility check)
         shell: bash
         run: |
           set -euo pipefail
-          git show origin/main:index.html > index-main.html
-          python tools/build_dugout_database.py index-main.html People.csv Appearances.csv Teams.csv \
+          git show d32596a:index.html > index-legacy.html   # pinned pre-2.0 page
+          python tools/build_dugout_database.py index-legacy.html People.csv Appearances.csv Teams.csv \
             --allstar AllstarFull.csv --awards AwardsPlayers.csv --hof HallOfFame.csv \
             --output index-updated.html
           python tools/splice_data.py index-updated.html index.html index-rebuilt.html
-          node tools/build_daily_overrides.js index-rebuilt.html 0.35
+          python tools/apply_schedule.py index-rebuilt.html data/daily-schedule-v1.json
           node - <<'JS'
           const fs = require('fs');
           const get = f => fs.readFileSync(f, 'utf8').match(/const D = (\{.*?\});\s*\n\(function \(\) \{/s)[1];
@@ -62,10 +62,27 @@ jobs:
           for f in inline*.js tests/*.js tools/*.js; do node --check "$f"; done
 
       - name: Database, graph and schedule audit
-        run: node tests/audit_db.js index.html origin/main
+        run: node tests/audit_db.js index.html d32596a origin/main
 
       - name: Modern-player coverage simulation
         run: node tests/coverage_sim.js index.html 150 400 | tee coverage-report.json
+
+      - name: Browser interaction tests (Chromium, desktop and iPhone-sized)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-audit --no-fund playwright@1.49.1
+          npx playwright install --with-deps chromium
+          node tests/browser_test.js "$RUNNER_TEMP/shots"
+
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-screenshots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload migrated preview and audit summary
         uses: actions/upload-artifact@v4

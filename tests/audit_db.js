@@ -1,11 +1,13 @@
-// Database + graph audit. Usage: node tests/audit_db.js [html] [baseRef=origin/main]
-// Compares the embedded data against the base ref's index.html (published schedule must be identical).
+// Database + graph audit. Usage: node tests/audit_db.js [html] [legacyRef=d32596a] [deployedRef=origin/main]
+// legacyRef = the pre-2.0 page (original 3,691 players, 1,100 pairs). deployedRef = what is live now: the published
+// Daily schedule (sch/ovr/ext) must be identical to it.
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const html = process.argv[2] || path.join(__dirname, '..', 'index.html');
-const ref = process.argv[3] || 'origin/main';
+const ref = process.argv[3] || 'd32596a', deployedRef = process.argv[4] || 'origin/main';
 const parse = s => JSON.parse(s.match(/const D = (\{.*?\});\s*\n\(function \(\) \{/s)[1]);
 const D = parse(fs.readFileSync(html, 'utf8'));
 const O = parse(cp.execSync(`git show ${ref}:index.html`, { cwd: path.join(__dirname, '..'), maxBuffer: 1 << 29 }).toString());
+const DEP = parse(cp.execSync(`git show ${deployedRef}:index.html`, { cwd: path.join(__dirname, '..'), maxBuffer: 1 << 29 }).toString());
 const res = []; let fail = 0;
 const check = (name, ok, detail = '') => { res.push({ name, ok, detail }); if (!ok) fail++; console.log((ok ? 'PASS ' : 'FAIL ') + name + (detail ? ' — ' + detail : '')); };
 const P = D.p, TS = D.ts;
@@ -39,7 +41,8 @@ check('no legacy team-season dropped by migration', lost === 0, `${lost} dropped
 // schedule
 const S = D.sch;
 check('published schedule length is 1,100', S.length === 1100);
-check('published schedule identical to ' + ref, JSON.stringify(S) === JSON.stringify(O.sch));
+check('original schedule identical to ' + ref, JSON.stringify(S) === JSON.stringify(O.sch));
+check('LIVE schedule immutable: sch, ovr, ext identical to ' + deployedRef, JSON.stringify([D.sch, D.ovr, D.ext]) === JSON.stringify([DEP.sch, DEP.ovr, DEP.ext]));
 check('schedule references valid players', S.every(([a, b]) => idset.has(a) && idset.has(b)));
 const pk = S.map(([a, b]) => a < b ? a + '|' + b : b + '|' + a);
 check('no duplicate scheduled pairs', new Set(pk).size === pk.length);

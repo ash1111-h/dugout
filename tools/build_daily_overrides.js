@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// HISTORICAL TOOL: produced the frozen schedule in data/daily-schedule-v1.json (the schedule is now live and must not change; CI applies the frozen file instead).
 // Writes D.ovr into index.html: deterministic modern-era swaps for a share of prebuilt daily puzzles.
 // D.sch (the original 1,100 pairs) is never touched; days 1-4 are always modern-era (the Dugout 2.0 launch week) and so are ~35% of later days;
 // the original pairs 1-4 were already served on the previous site, so they are relocated to D.ext instead of replayed.
