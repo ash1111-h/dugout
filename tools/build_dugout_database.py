@@ -17,6 +17,17 @@ def rows(path):
     with open(path, newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
+MAJOR_AWARDS = {"Most Valuable Player", "Cy Young Award", "Rookie of the Year", "World Series MVP", "Triple Crown", "Hank Aaron Award"}
+MINOR_AWARDS = {"Gold Glove", "Silver Slugger", "All-MLB Team - First Team", "All-MLB Team - Second Team", "Reliever of the Year Award",
+                "All-Star Game MVP", "MLB Players Choice Outstanding Player", "MLB Players Choice Outstanding Pitcher", "MLB Players Choice Outstanding Rookie"}
+MONTHLY_AWARDS = {"Player of the Month", "Pitcher of the Month", "Rookie of the Month", "Reliever of the Month"}
+
+def familiarity(allstars, major, minor, monthly, hof, regular_seasons):
+    """0-100 recognizability score ("m"). Unlike fame it does not need a long career, so stars and
+    award-winning rookies rank high: All-Star picks, major/minor awards, Hall of Fame and regular seasons."""
+    return min(100, min(50, 10*allstars) + min(60, 25*major) + min(24, 6*minor) + min(9, 3*monthly)
+               + (40 if hof else 0) + min(50, 5*regular_seasons))
+
 def fame_score(games, seasons, allstars=0, awards=0, hof=False):
     """Raw (uncalibrated) formula; see build_fame_calibration() for why it is remapped."""
     score = 1.2 + 1.65 * math.log1p(max(0, games)) + 0.45 * math.sqrt(max(1, seasons))
@@ -95,9 +106,14 @@ def main():
     allstars=defaultdict(int)
     for r in optional(a.allstar):
         if r.get("playerID"): allstars[r["playerID"]]+=1
-    awards=defaultdict(int)
+    awards=defaultdict(int); major=defaultdict(int); minor=defaultdict(int); monthly=defaultdict(int)
     for r in optional(a.awards):
-        if r.get("playerID"): awards[r["playerID"]]+=1
+        pid_=r.get("playerID")
+        if not pid_: continue
+        awards[pid_]+=1; aid=r.get("awardID")
+        if aid in MAJOR_AWARDS: major[pid_]+=1
+        elif aid in MINOR_AWARDS: minor[pid_]+=1
+        elif aid in MONTHLY_AWARDS: monthly[pid_]+=1
     hof={r["playerID"] for r in optional(a.hof) if r.get("playerID") and (r.get("inducted") or "").strip().upper()=="Y"}
     names=data["tn"]; name_idx={n:i for i,n in enumerate(names)}
     ts=data["ts"]; ts_idx={(int(y),int(t)):i for i,(y,t) in enumerate(ts)}
@@ -144,7 +160,9 @@ def main():
     regular=defaultdict(int)
     for (pid,_y),(g,gs,gp) in season_load.items():
         if g>=100 or gs>=20 or gp>=50: regular[pid]+=1
-    for pid in appearances: pidx[pid]["r"]=regular[pid]
+    for pid in appearances:
+        pidx[pid]["r"]=regular[pid]
+        pidx[pid]["m"]=familiarity(allstars[pid],major[pid],minor[pid],monthly[pid],pid in hof,regular[pid])
     print(f"Fame calibrated on {len(stable):,} unchanged legacy players; {refreshed:,} legacy players with extended careers refreshed.")
     ids=[p["i"] for p in players]
     if len(ids)!=len(set(ids)): raise SystemExit("Duplicate player IDs after merge.")
