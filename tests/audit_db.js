@@ -62,8 +62,8 @@ check('route distribution matches migration report (308/463/300/29)', JSON.strin
 // ---- effective schedule (after modern-era shuffle) ----
 const OV = D.ovr || {}, EXT = D.ext || [], L = S.length;
 const eff = []; for (let n = 1; n <= L; n++) eff.push(OV[n] || S[n - 1]); for (const e of EXT) eff.push(e);
-check('days 1-4 (served by 2026-11-21) unchanged', [1, 2, 3, 4].every(n => !OV[n]));
-check('overrides only on days 5..1100', Object.keys(OV).every(k => +k >= 5 && +k <= L));
+check('launch days 1-4 are modern-era swaps; the originals already served on the old site (old days 1-4) are not replayed before day 1101', [1, 2, 3, 4].every(n => OV[n]) && S.slice(0, 4).every(p => eff.slice(0, L).every(q => q[0] !== p[0] || q[1] !== p[1])));
+check('overrides only on days 1..1100', Object.keys(OV).every(k => +k >= 1 && +k <= L));
 const displaced = Object.keys(OV).map(k => S[+k - 1]);
 check('every displaced original pair is kept in D.ext (nothing discarded)', JSON.stringify(displaced.slice().sort()) === JSON.stringify(EXT.slice().sort()), `${Object.keys(OV).length} swaps, ${EXT.length} relocated`);
 check('every original pair still plays exactly once', (() => { const c = new Map(); [...eff].forEach(([a, b]) => { const k = a < b ? a + '|' + b : b + '|' + a; c.set(k, (c.get(k) || 0) + 1); }); return pk.every(k => c.get(k) === 1); })());

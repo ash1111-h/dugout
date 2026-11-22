@@ -8,8 +8,8 @@ const H = require('./harness')(html);
 const outDir = process.argv[2] || path.join(require('os').tmpdir(), 'dugout-shots'); fs.mkdirSync(outDir, { recursive: true });
 const results = []; let failed = 0;
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); if (!ok) failed++; console.log((ok ? 'PASS ' : 'FAIL ') + name + (detail ? ' — ' + detail : '')); };
-const NOW = new Date('2026-11-20T12:00:00-08:00');
-const day2 = H.dailyPuzzleFor('2026-11-20');
+const NOW = new Date('2026-11-23T12:00:00-08:00');
+const day2 = H.dailyPuzzleFor('2026-11-23');
 const nameOf = i => H.P[i].n;
 
 async function type(page, text) { await page.fill('#q', ''); await page.type('#q', text, { delay: 0 }); }
@@ -33,7 +33,7 @@ async function runViewport(browser, label, ctxOpts) {
   check(`[${label}] no JavaScript errors on load (Supabase blocked)`, errors.length === 0, errors.join(' | '));
   // date-based consistency: UI shows the same puzzle the deterministic schedule gives for 2026-11-20 (day 2)
   const sn = await page.textContent('#top .card.start .nm'), tn = await page.textContent('#bottom .card.target .nm');
-  check(`[${label}] Daily #2 (2026-11-20) matches schedule`, sn === nameOf(day2.start) && tn === nameOf(day2.target), `${sn} -> ${tn}`);
+  check(`[${label}] Daily #2 (2026-11-23) matches schedule`, sn === nameOf(day2.start) && tn === nameOf(day2.target), `${sn} -> ${tn}`);
   check(`[${label}] puzzle number shown`, /Puzzle #2/.test(await page.textContent('#pips')));
   // layout
   const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
