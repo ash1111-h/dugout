@@ -1,7 +1,7 @@
 # Dugout 2.0 branch — implementation and verification status
 
-**Branch:** `dugout-2.0-upgrade` · **Last verified:** 2026-11-21 · **Status: draft — not ready to merge** (live Supabase, SMTP, account deletion and real-device checks are still open, see below).
-The live site and `main` have not been changed.
+**Branch:** `dugout-2.0-upgrade` · **Last verified:** 2026-11-22 · **Status: code-complete and tested offline; live Supabase, SMTP, account deletion and real-device checks are still open, see below.**
+The Daily schedule was restarted so that **2026-11-22 is puzzle #1**.
 
 ## Completed in this branch (earlier work, preserved)
 
@@ -18,7 +18,7 @@ The live site and `main` have not been changed.
 - [x] **Builder label fix.** Original team-season labels are reused instead of gaining a league suffix, so no legacy team-season changes name (audit: 0 dropped).
 - [x] **New `r` field** (regular seasons: 100+ G, 20+ GS or 50+ pitching appearances in a season). Fame accumulates over a career, so the old `minF`/`minA` floors can never admit a rookie; the modern lanes use `r` instead.
 - [x] **Era-lane generator** used by Unlimited and generated Daily puzzles: classic (original recipes, unchanged), historical (career ended by 1999), veteran (active 2020+, debuted earlier), rookie (first MLB appearance 2020+). Unlimited mix 35/15/20/30; Daily 60/15/10/15.
-- [x] **Daily shuffle.** The original `D.sch` (1,100 pairs) is untouched. 407 modern-era pairs were swapped into days 5–1100 (`D.ovr`); the 407 displaced originals were relocated, none discarded, to days 1101–1507 (`D.ext`). Days 1–4 are never changed. Generated days start at day 1508 (2031-01-04).
+- [x] **Daily restart and shuffle.** `D.sch` (the original 1,100 pairs) is untouched, but the start date moved to 2026-11-22 (day 1). Days 1–4 are forced modern-era puzzles (multi-season regulars paired with well-known players); 412 modern-era pairs in total were swapped into days 1–1100 (`D.ovr`). The 412 displaced originals, including the four already served on the previous site (Nov 19–22), were relocated to days 1101–1512 (`D.ext`); nothing was discarded. Generated days start at day 1513 (2031-01-12).
 - [x] Tests added in `tests/` and CI updated (see below).
 
 ## Test results (all run on 2026-11-21 against this branch)
@@ -30,8 +30,8 @@ The live site and `main` have not been changed.
 | No legacy team-season dropped | PASS (0 dropped) |
 | Original schedule identical to `main` (1,100 pairs); no duplicates; valid refs | PASS |
 | Original routes 308/463/300/29 (2/3/4/5 links) | PASS |
-| Effective schedule (1,507 days): no duplicate pairs, every original pair plays once, all overrides routable (2-5 links: 106/121/140/40) | PASS |
-| 24-day player cooldown across effective schedule | PASS with 3 unavoidable exceptions at the end of the relocated block |
+| Effective schedule (1,512 days): no duplicate pairs, every original pair plays once, all overrides routable (2-5 links), launch-week originals not replayed before day 1101 | PASS |
+| 24-day player cooldown across effective schedule | PASS with 2 unavoidable exceptions at the end of the relocated block |
 | All 16,454 players with a solid link in one connected component | PASS (4,773 cameo-only players can be guessed but never appear as endpoints) |
 | Embedded data reproduces byte-for-byte from the pinned Lahman CSVs plus `tools/` | PASS (run locally; CI step added, not yet run on GitHub) |
 | JavaScript syntax (`node --check` on inline script, tests, tools) | PASS |
@@ -56,19 +56,19 @@ The live site and `main` have not been changed.
 
 Daily schedule:
 
-| | Original 1,100 | Effective prebuilt (1,507 days) | Generated days 1508-2607 |
+| | Original 1,100 | Effective prebuilt (1,512 days) | Generated days 1513-2612 |
 |---|---|---|---|
-| At least one player active 2020-2025 | 30.5% | 49.2% | 52.7% |
-| At least one recent debut | 0% | 14.7% (221 days) | 18.2% |
-| At least one debut in 2024-2025 | 0% | 3.6% | 4.4% |
-| Pre-2000-only | 9.5% | 6.9% | 18.9% |
+| At least one player active 2020-2025 | 30.5% | 49.4% | 53.2% |
+| At least one recent debut | 0% | 14.9% (225 days) | 18.5% |
+| At least one debut in 2024-2025 | 0% | 3.6% | 4.7% |
+| Pre-2000-only | 9.5% | 6.9% | 17.9% |
 
 Route lengths are unchanged by difficulty (Easy 2-3, Medium 3-4, Hard 4-5). Easy shows many two-modern puzzles because modern rosters are dense and Easy only allows 2-3 links.
 
 ## Known limitations
 
-- Rookie-lane endpoints are chosen by games played, not fame, so some are lesser-known (for example day 5: Declan Cronin to Pete Kozma). Tighten `modernEligible()` if you want more familiar names.
-- The modern share is high by design; the original schedule was 30.5% and is now 49.2% on prebuilt days. Tune `ERA_MIX` or the swap share (default 0.35) in `tools/build_daily_overrides.js`.
+- Rookie-lane endpoints are chosen by games played, not fame, so some are lesser-known (for example puzzle #10: Junior Guerra to Justin Martinez); launch days 1–4 use a higher bar. Tighten `modernEligible()` if you want more familiar names.
+- The modern share is high by design; the original schedule was 30.5% and is now 49.4% on prebuilt days. Tune `ERA_MIX` or the swap share (default 0.35) in `tools/build_daily_overrides.js`.
 - The 2020 season was 60 games, so few 2020 players reach the regular-season bar.
 - Autocomplete and generation timings were measured in headless Chromium and Node on a server, **not on a phone**.
 
@@ -78,7 +78,8 @@ Route lengths are unchanged by difficulty (Easy 2-3, Medium 3-4, Hard 4-5). Easy
 - [ ] Guest/account stats separation when actually signing in (only the guest key and an unrelated seeded key were exercised).
 - [ ] Cloud sync on a second device; leaderboard opt-in/out.
 - [ ] Physical iPhone/iPad, Safari, Firefox and screen-reader testing. Chromium emulation only.
-- [ ] GitHub Actions run of the updated workflow (steps were run locally; the workflow itself has not executed on GitHub).
 - [ ] Leaderboard remains client-reported and not cheat-proof; the puzzle schedule is embedded in the static page.
 
-Do not merge or deploy until the open items are done or accepted.
+GitHub Actions: the migration/audit/coverage workflow passed on GitHub for the 2.0 commit. Changing the start date means players who played the previous Nov 19–21 puzzles keep those results in their stats, but those dates no longer have a puzzle number.
+
+Published with the open items above accepted by the project owner; sign-in, cloud sync and the leaderboard remain unverified.

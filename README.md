@@ -135,5 +135,5 @@ The roster snapshot embedded in this version originated from Lahman Baseball Dat
 ## Modern-era mix and tests (Dugout 2.0)
 
 - Unlimited and generated Daily puzzles draw from four era lanes (classic, historical, veteran active since 2020, and "recent debut" = first MLB appearance in 2020 or later; this is a games-based proxy, not an official rookie designation). Weights are `ERA_MIX` in `index.html`.
-- The original 1,100 daily pairs are kept in `D.sch`. Some days 5-1100 were swapped for modern-era pairs (`D.ovr`) and the displaced originals play on days 1101-1507 (`D.ext`). Regenerate with `node tools/build_daily_overrides.js index.html 0.35`.
+- The original 1,100 daily pairs are kept in `D.sch`. The Daily schedule starts on 2026-11-22 (puzzle #1). Days 1-4 and about a third of later days 1-1100 were swapped for modern-era pairs (`D.ovr`); the displaced originals play on days 1101-1512 (`D.ext`). Regenerate with `node tools/build_daily_overrides.js index.html 0.35`.
 - Tests (Node 20+, no dependencies except Playwright for the browser test): `node tests/audit_db.js index.html origin/main`, `node tests/coverage_sim.js index.html 400 1100`, `node tests/browser_test.js` (needs `playwright` with Chromium installed). Results are in `DUGOUT-2.0-BRANCH-QA.md`.
