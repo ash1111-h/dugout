@@ -137,3 +137,13 @@ The roster snapshot embedded in this version originated from Lahman Baseball Dat
 - Unlimited and generated Daily puzzles draw from four era lanes (classic, historical, veteran active since 2020, and "recent debut" = first MLB appearance in 2020 or later; this is a games-based proxy, not an official rookie designation). Weights are `ERA_MIX` in `index.html`.
 - The original 1,100 daily pairs are kept in `D.sch`. The Daily schedule starts on 2026-11-22 (puzzle #1). Days 1-4 and about a third of later days 1-1100 were swapped for modern-era pairs (`D.ovr`); the displaced originals play on days 1101-1512 (`D.ext`). Regenerate with `node tools/build_daily_overrides.js index.html 0.35`.
 - Tests (Node 20+, no dependencies except Playwright for the browser test): `node tests/audit_db.js index.html origin/main`, `node tests/coverage_sim.js index.html 400 1100`, `node tests/browser_test.js` (needs `playwright` with Chromium installed). Results are in `DUGOUT-2.0-BRANCH-QA.md`.
+
+## Dugout 3.0 additions
+
+- **Familiarity score (`m`, 0-100)** per player, built from All-Star selections, major/minor awards, Hall of Fame and regular seasons (`familiarity()` in `tools/build_dugout_database.py`). Unlike career fame it can rate a young star.
+- **Unlimited controls:** *Players* (Famous / Mixed / Deep cuts) sets how well known modern endpoints must be, and *Era* (Mixed / Pre-2000 / Since 2020) restricts the era. Mixed is the default; 2024+ debutants get a lower bar because they have had little time to earn awards.
+- **Challenge links:** after any game, "Copy challenge link" gives `?c=<startId>.<targetId>`; opening it loads that exact pair. Invalid links are ignored and fall back to today's Daily.
+- **Share image:** "Save image" makes a 1080x1080 PNG (uses the native share sheet where available, otherwise downloads).
+- **Frozen live schedule:** `data/daily-schedule-v1.json` is the published Daily schedule; `tests/audit_db.js` fails if it differs from `main`. `tools/apply_schedule.py` writes it into rebuilt data.
+- **CI:** `.github/workflows/dugout-checks.yml` rebuilds the data from the pinned pre-2.0 page (`d32596a`) and checks it matches `index.html` exactly, then runs syntax, audit, simulation and Playwright browser tests. `.github/workflows/offseason-refresh.yml` is a manual job that rebuilds from new Lahman CSVs and opens a draft PR.
+- Compare pool/era settings with `node tests/pool_sim.js index.html 150`.

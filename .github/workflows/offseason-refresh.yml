@@ -1,0 +1,63 @@
+name: Offseason data refresh (manual)
+
+# Run after a new Lahman release. Rebuilds the roster from the pre-2.0 page plus the new CSVs, re-applies the
+# frozen Daily schedule, runs the audit, and opens a pull request if the data changed. It never touches main directly.
+on:
+  workflow_dispatch:
+    inputs:
+      csv_base_url:
+        description: "Raw URL folder holding People.csv, Appearances.csv, Teams.csv, AllstarFull.csv, AwardsPlayers.csv, HallOfFame.csv"
+        required: true
+        default: "https://raw.githubusercontent.com/cbwinslow/lahman-database-csv/0377e0b8d3f1b8f6710cc4faee7d842d0e81f344/data"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download CSVs
+        env:
+          BASE: ${{ inputs.csv_base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv; do
+            curl --fail --location --retry 4 "$BASE/$f" --output "$f"
+          done
+      - name: Rebuild data and keep the frozen schedule
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show d32596a:index.html > index-legacy.html
+          python tools/build_dugout_database.py index-legacy.html People.csv Appearances.csv Teams.csv \
+            --allstar AllstarFull.csv --awards AwardsPlayers.csv --hof HallOfFame.csv --output index-updated.html
+          python tools/splice_data.py index-updated.html index.html index-new.html
+          python tools/apply_schedule.py index-new.html data/daily-schedule-v1.json
+          mv index-new.html index.html
+          rm -f index-legacy.html index-updated.html People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv
+      - name: Audit (published schedule must be unchanged)
+        run: node tests/audit_db.js index.html d32596a origin/main
+      - name: Open a pull request if anything changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then echo "No data changes; nothing to do."; exit 0; fi
+          BR="data-refresh-$(date +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BR"; git add index.html
+          git commit -m "Refresh roster data from new Lahman CSVs"
+          git push origin "$BR"
+          gh pr create --draft --base main --head "$BR" --title "Offseason data refresh" \
+            --body "Automated rebuild from new Lahman CSVs. The published Daily schedule is unchanged (audit passed). Review the audit output and play-test before merging."

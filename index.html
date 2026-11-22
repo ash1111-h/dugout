@@ -272,12 +272,12 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
       <button type="button" id="mFree" aria-pressed="false">Unlimited</button>
     </div>
     <div class="ctl" id="freeCtl" hidden>
-      <label for="diff" style="font-size:13px;color:var(--muted)">Difficulty</label>
-      <select id="diff"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select>
-      <label for="pool" style="font-size:13px;color:var(--muted)">Players</label>
-      <select id="pool"><option value="famous">Famous</option><option value="mixed" selected>Mixed</option><option value="deep">Deep cuts</option></select>
-      <label for="era" style="font-size:13px;color:var(--muted)">Era</label>
-      <select id="era"><option value="mixed" selected>Mixed</option><option value="historical">Pre-2000</option><option value="modern">Since 2020</option></select>
+      <span style="white-space:nowrap"><label for="diff" style="font-size:13px;color:var(--muted)">Difficulty</label>
+      <select id="diff"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></span>
+      <span style="white-space:nowrap"><label for="pool" style="font-size:13px;color:var(--muted)">Players</label>
+      <select id="pool"><option value="famous">Famous</option><option value="mixed" selected>Mixed</option><option value="deep">Deep cuts</option></select></span>
+      <span style="white-space:nowrap"><label for="era" style="font-size:13px;color:var(--muted)">Era</label>
+      <select id="era"><option value="mixed" selected>Mixed</option><option value="historical">Pre-2000</option><option value="modern">Since 2020</option></select></span>
       <button type="button" class="btn ghost" id="bNew">New puzzle</button>
       <span id="runLbl"></span>
     </div>
@@ -1380,6 +1380,47 @@ function startDaily(ds) {
   else if (rawSave) { delete bucket[ds]; save(store); }
   render();
 }
+// ---- Challenge links and share image ---------------------------------------------------------
+// ?c=<startId>.<targetId> opens that exact pair (Lahman IDs are stable). Anything invalid is ignored.
+function challengeUrl() { return location.href.split(/[?#]/)[0] + '?c=' + encodeURIComponent(P[G.start].i) + '.' + encodeURIComponent(P[G.target].i); }
+function parseChallenge(search) {
+  const m = /^\??(?:.*&)?c=([A-Za-z0-9]{3,12})\.([A-Za-z0-9]{3,12})(?:&.*)?$/.exec(search || '');
+  if (!m) return null;
+  const s = IDX.get(m[1]), t = IDX.get(m[2]);
+  if (s === undefined || t === undefined || s === t) return null;
+  const d = bfsS(s)[t];
+  return d >= 2 && d <= 6 ? { start: s, target: t, lane: 'challenge' } : null;
+}
+function drawShareCard(info) {
+  const W = 1080, H = 1080, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#14301f'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#1d4a2f'; x.fillRect(0, 0, W, 16); x.fillRect(0, H - 16, W, 16);
+  const fit = (txt, maxW, size, weight) => { let f = size; do { x.font = weight + ' ' + f + 'px system-ui, -apple-system, Segoe UI, sans-serif'; f -= 2; } while (x.measureText(txt).width > maxW && f > 18); return txt; };
+  x.textAlign = 'center'; x.fillStyle = '#e0b84c'; fit('DUGOUT', 900, 84, '800'); x.fillText('DUGOUT', W / 2, 130);
+  x.fillStyle = '#f5f1e4'; fit(info.sub, 900, 36, '500'); x.fillText(info.sub, W / 2, 190);
+  x.fillStyle = '#f5f1e4'; fit(info.start, 900, 64, '700'); x.fillText(info.start, W / 2, 330);
+  x.fillStyle = '#e0b84c'; x.font = '700 48px system-ui, sans-serif'; x.fillText('\u2193  connect to  \u2193', W / 2, 410);
+  x.fillStyle = '#f5f1e4'; fit(info.target, 900, 64, '700'); x.fillText(info.target, W / 2, 500);
+  const n = info.log.length + (info.won ? 1 : 0), size = 72, gap = 14, total = n * size + (n - 1) * gap; let px = (W - total) / 2;
+  info.log.forEach(ok => { x.fillStyle = ok ? '#3aa55d' : '#c8483f'; x.fillRect(px, 590, size, size); px += size + gap; });
+  if (info.won) { x.fillStyle = '#e0b84c'; x.fillRect(px, 590, size, size); x.fillStyle = '#14301f'; x.beginPath(); x.moveTo(px + 12, 640); x.lineTo(px + size / 2, 603); x.lineTo(px + size - 12, 640); x.lineTo(px + size - 12, 654); x.lineTo(px + 12, 654); x.closePath(); x.fill(); }
+  x.fillStyle = '#f5f1e4'; x.font = '800 120px system-ui, sans-serif'; x.fillText(info.score, W / 2, 830);
+  if (info.rarity) { x.fillStyle = '#e0b84c'; fit(info.rarity, 900, 44, '600'); x.fillText(info.rarity, W / 2, 910); }
+  x.fillStyle = '#9bb8a6'; x.font = '500 30px system-ui, sans-serif'; x.fillText('Can you connect them? ' + location.host + location.pathname, W / 2, 1010);
+  return c;
+}
+function saveShareImage(info) {
+  const c = drawShareCard(info);
+  c.toBlob(blob => {
+    if (!blob) return;
+    const file = new File([blob], 'dugout-result.png', { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: 'Dugout' }).catch(() => { }); return; } } catch (e) { /* fall through to download */ }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dugout-result.png';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, 'image/png');
+}
+function startChallenge(pz) { mode = 'free'; newGame('free', pz, 'free', false); render(); say('Challenge puzzle loaded. Connect them in six guesses or fewer.'); }
 const FREE_HISTORY = [];
 function startFree() {
   const cfg = DIFF[$('diff').value] || DIFF.medium;
@@ -1498,12 +1539,18 @@ function render() {
       '<div>' + (G.won ? 'Connected in ' + G.log.length + ' of ' + MAXA + ' guesses' + (G.hints ? ' with ' + G.hints + ' hint' + (G.hints === 1 ? '' : 's') : '') + '.' : 'You ran out of guesses.') + '</div>' +
       '<div class="grid">' + grid + '</div>' +
       (rarity ? '<div class="rarity-card"><div class="rarity-kicker">Your path rarity</div><div class="rarity-line"><span class="rarity-score">' + rarity.score + '/99</span><span class="rarity-tier">' + rarity.tier + '</span></div><div class="rarity-note">Based on the successful route you played, including its teammate connections — not the shortest possible route.</div></div>' : '') + route +
-      '<div class="row"><button type="button" class="btn" id="bShare">Copy result</button>' + (G.mode === 'free' ? '<button type="button" class="btn ghost" id="bAgain">Next puzzle</button>' : '') + (G.arch ? '<button type="button" class="btn ghost" id="bToday">Back to today</button>' : '') + '</div>' + foot +
+      '<div class="row"><button type="button" class="btn" id="bShare">Copy result</button>' + '<button type="button" class="btn ghost" id="bImg">Save image</button><button type="button" class="btn ghost" id="bChal">Copy challenge link</button>' + (G.mode === 'free' ? '<button type="button" class="btn ghost" id="bAgain">Next puzzle</button>' : '') + (G.arch ? '<button type="button" class="btn ghost" id="bToday">Back to today</button>' : '') + '</div>' + foot +
       '<textarea class="sharebox" id="shareTxt" rows="2" readonly hidden></textarea></div>';
     $('bShare').onclick = () => {
       const ta = $('shareTxt'); ta.value = sharetxt;
       const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); };
       try { navigator.clipboard.writeText(sharetxt).then(() => { $('bShare').textContent = 'Copied'; }, fallback); } catch (e) { fallback(); }
+    };
+    $('bImg').onclick = () => saveShareImage({ start: dn(G.start), target: dn(G.target), log: G.log.map(e => !!e.ok), won: G.won, score: score, sub: G.mode === 'daily' ? 'Puzzle #' + dayNumOf(G.id) : (G.mode === 'free' ? 'Unlimited' : 'Challenge'), rarity: rarity ? rarity.tier + ' path (' + rarity.score + '/99)' : '' });
+    $('bChal').onclick = () => {
+      const url = challengeUrl(), ta = $('shareTxt'); ta.value = url;
+      const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); };
+      try { navigator.clipboard.writeText(url).then(() => { $('bChal').textContent = 'Link copied'; }, fallback); } catch (e) { fallback(); }
     };
     if ($('bAgain')) $('bAgain').onclick = startFree;
     if ($('bToday')) $('bToday').onclick = () => startDaily(TODAY);
@@ -1585,7 +1632,11 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) chec
 // Paint the page shell first, then build today's puzzle (the first search of the roster graph takes a moment on phones).
 setAuthMode('signin');
 renderAccount();
-setTimeout(() => { startDaily(TODAY); initCloud(); }, 0);
+setTimeout(() => {
+  const ch = parseChallenge(location.search);
+  if (ch) startChallenge(ch); else { startDaily(TODAY); if (/[?&]c=/.test(location.search)) say('That challenge link is not valid, so here is today\u2019s puzzle.'); }
+  initCloud();
+}, 0);
 })();
 </script>
 

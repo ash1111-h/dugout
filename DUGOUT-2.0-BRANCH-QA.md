@@ -83,3 +83,15 @@ Route lengths are unchanged by difficulty (Easy 2-3, Medium 3-4, Hard 4-5). Easy
 GitHub Actions: the migration/audit/coverage workflow passed on GitHub for the 2.0 commit. Changing the start date means players who played the previous Nov 19–21 puzzles keep those results in their stats, but those dates no longer have a puzzle number.
 
 Published with the open items above accepted by the project owner; sign-in, cloud sync and the leaderboard remain unverified.
+
+---
+
+# Dugout 3.0 branch addendum (2026-11-22)
+
+**Verified in this branch:** data/audit (including *LIVE schedule immutable vs main*, `m` field 0-100 on all 21,227 players), exact data reproducibility from the pinned pre-2.0 page plus the frozen schedule, and Playwright tests at 1280x800 and 390x844 covering Era and Players controls, share-image PNG (1080x1080), challenge links (valid, invalid, identical players) plus everything from the 2.0 list.
+
+Unlimited, Mixed pool, 300 puzzles per difficulty (Easy / Medium / Hard): solvable 100/100/100%; at least one player active 2020-25: 66.0/65.3/61.3%; at least one recent debut: 37.7/29.7/33.0%; at least one 2024-25 debut: 8.3/7.3/10.3%; pre-2000-only puzzles: 18.3/16.3/22.7%. Generated Daily days (1513 on): 50.5% any 2020+ player, 17.5% recent debut, 5.0% a 2024-25 debut, all solvable.
+
+Pool comparison (`tests/pool_sim.js`, Medium, 150 puzzles per cell, all 100% solvable). In the *Since 2020* era, endpoints with familiarity below 10 were 0% (Famous), 6.7% (Mixed) and 13.7% (Deep cuts); puzzles with a 2024-25 debut were 24.0%, 14.7% and 19.3% (small samples, so differences between pools in that column are noisy). In the default *Mixed era*, familiarity below 10 was 0% / 4.7% / 3.3% and 2024-25 debuts appeared in 7.3% / 13.3% / 5.3% of puzzles.
+
+**Not verified / limits:** same Supabase items as above (nothing from 3.0 depends on Supabase). The offseason-refresh workflow has not been run. The share image was checked in headless Chromium; the native share sheet on iOS/Android was not tested. Familiarity is a heuristic (it caps at 100, so it does not separate superstars from stars). The prebuilt Daily schedule is unchanged and was not re-scored with `m`.

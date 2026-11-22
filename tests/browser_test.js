@@ -114,6 +114,34 @@ async function runViewport(browser, label, ctxOpts) {
   check(`[${label}] 60 in-browser Unlimited puzzles all valid`, badRoute === 0 && n === 60, `${any}/60 had a 2020+ player, ${deb}/60 had a 2020+ debut`);
   check(`[${label}] Unlimited generation latency (headless Chromium, not a phone)`, times[Math.floor(times.length * .95)] < 2000, `median ${times[30].toFixed(0)} ms, p95 ${times[Math.floor(times.length * .95)].toFixed(0)} ms, max ${times[59].toFixed(0)} ms`);
   await page.screenshot({ path: path.join(outDir, `${label}-unlimited.png`), fullPage: true });
+
+  // ---- 3.0 features: Players/Era controls, challenge links, share image
+  await page.selectOption('#era', 'historical'); let histOk = 0, histN = 12;
+  for (let k = 0; k < histN; k++) { if (k) await page.click('#bNew'); const [s, t] = await idxFromDom(); if (H.P[s].b < 2000 && H.P[t].b < 2000) histOk++; }
+  check(`[${label}] Era = Pre-2000 gives only pre-2000 players`, histOk === histN, `${histOk}/${histN}`);
+  await page.selectOption('#era', 'modern'); let modOk = 0, modDeb = 0;
+  for (let k = 0; k < histN; k++) { if (k) await page.click('#bNew'); const [s, t] = await idxFromDom(); if (H.P[s].b >= 2020 && H.P[t].b >= 2020 || H.P[s].b >= 2020 || H.P[t].b >= 2020) modOk++; if (H.P[s].a >= 2020 || H.P[t].a >= 2020) modDeb++; }
+  check(`[${label}] Era = Since 2020 always includes a 2020+ player`, modOk === histN, `${modOk}/${histN}; ${modDeb} with a 2020+ debut`);
+  await page.selectOption('#era', 'mixed'); await page.selectOption('#pool', 'famous');
+  let famOk = 0; for (let k = 0; k < 10; k++) { if (k) await page.click('#bNew'); const [s, t] = await idxFromDom(); if (H.P[s].m >= 10 && H.P[t].m >= 10) famOk++; }
+  check(`[${label}] Players = Famous keeps familiarity high`, famOk === 10, `${famOk}/10 puzzles with both endpoints familiarity>=10`);
+  await page.selectOption('#pool', 'mixed');
+  const [cs, ct] = await idxFromDom(); const croute = H.pathBetween(cs, ct); await playRoute(page, croute); await page.waitForSelector('#resultBox .result.win');
+  const dl = page.waitForEvent('download'); await page.click('#bImg'); const download = await dl;
+  const buf = await new Promise((res, rej) => { const ch = []; download.createReadStream().then(st => { st.on('data', d => ch.push(d)); st.on('end', () => res(Buffer.concat(ch))); st.on('error', rej); }); });
+  check(`[${label}] Save image downloads a 1080x1080 PNG`, buf.slice(0, 8).toString('hex') === '89504e470d0a1a0a' && buf.readUInt32BE(16) === 1080 && buf.readUInt32BE(20) === 1080 && buf.length > 5000, `${download.suggestedFilename()}, ${buf.length} bytes`);
+  fs.writeFileSync(path.join(outDir, `${label}-share-image.png`), buf);
+  await page.click('#bChal'); await page.waitForTimeout(150);
+  const link = await page.evaluate(() => navigator.clipboard.readText().catch(() => '')) || await page.inputValue('#shareTxt');
+  check(`[${label}] challenge link carries the exact pair`, link.includes('?c=' + H.P[cs].i + '.' + H.P[ct].i), link);
+  const p2 = await ctx.newPage(); await p2.route(/cdn\.jsdelivr\.net|supabase\.co/, r => r.abort()); await p2.clock.install({ time: NOW });
+  await p2.goto(link); await p2.waitForSelector('#top .card.start');
+  check(`[${label}] opening the challenge link loads that puzzle in Unlimited`, (await p2.textContent('#top .card.start .nm')) === nameOf(cs) && (await p2.textContent('#bottom .card.target .nm')) === nameOf(ct) && !(await p2.locator('#freeCtl').isHidden()), '');
+  await p2.goto('file://' + html + '?c=zzzzz.yyyyy'); await p2.waitForSelector('#top .card.start');
+  check(`[${label}] invalid challenge link falls back to today's Daily with a message`, (await p2.textContent('#top .card.start .nm')) === nameOf(day2.start) && /not valid/.test(await p2.textContent('#msg')), '');
+  await p2.goto('file://' + html + '?c=' + H.P[cs].i + '.' + H.P[cs].i); await p2.waitForSelector('#top .card.start');
+  check(`[${label}] challenge with identical players is rejected`, (await p2.textContent('#top .card.start .nm')) === nameOf(day2.start), '');
+  await p2.close();
   // accessibility affordances
   check(`[${label}] skip link + combobox labelling present`, (await page.locator('a[href="#main"]').count()) >= 1 && (await page.getAttribute('#q', 'aria-labelledby')) === 'gLbl' && (await page.getAttribute('#q', 'role')) === 'combobox');
   check(`[${label}] attribution visible in footer`, /SABR Lahman Database/.test(await page.textContent('.foot')) && /Sean Lahman/.test(await page.textContent('.foot')) && /CC BY-SA 3\.0/.test(await page.textContent('.foot')));

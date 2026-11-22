@@ -25,6 +25,7 @@ for (const p of P) {
   else { const ys = all.map(t => TS[t][0]); if (Math.min(...ys) !== p.a || Math.max(...ys) !== p.b) bad++; }
 }
 check('team-season references valid; no duplicates/overlap; a/b match seasons; f,r sane; no empty careers', bad === 0, bad + ' bad players');
+check('familiarity m is an integer 0-100 on every player', P.every(p => Number.isInteger(p.m) && p.m >= 0 && p.m <= 100));
 check('latest season is 2025', Math.max(...P.map(p => p.b)) === 2025);
 check('team-season names valid', TS.every(t => D.tn[t[1]] !== undefined));
 // legacy connections: any legacy player who lost a (year,team) season they had before?
