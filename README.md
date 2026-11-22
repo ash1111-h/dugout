@@ -2,8 +2,9 @@
 
 This package contains:
 
-- `index.html` — the ready-to-publish standalone game and email/password account interface.
-- `supabase-schema.sql` — the database tables, row-level security rules, and opt-in leaderboard function.
+- `index.html` — the standalone game and email/password account interface.
+- `supabase-schema.sql` — a combined, one-paste database setup script (tables, row-level security, and opt-in leaderboard function).
+- `supabase-step1-tables-and-security.sql` and `supabase-step2-leaderboard-compact.sql` — the same SQL split into two scripts for staged setup.
 
 The game can run as a guest without any account configuration. Email/password accounts, cloud saves, and the shared leaderboard become active after the Supabase steps below.
 
@@ -34,7 +35,7 @@ Use the project's **publishable** key for the browser. Current Supabase guidance
 1. In the Supabase dashboard, open **Settings → API Keys** or the project's **Connect** dialog.
 2. Copy the **Project URL** shown for the project.
 3. Copy the public **publishable key** (`sb_publishable_...`). If your project only shows the legacy `anon` key, that can work during migration, but prefer the publishable key for a new setup.
-4. The configured `index.html` supplied in this package already contains the Project URL and publishable key provided during setup. No further key editing is needed unless you regenerate either value in Supabase.
+4. The current development build already contains the project's URL and public publishable key. If you deploy this exact build, do not replace them with placeholders. If you create a different Supabase project, replace only those two constants in `index.html` with that project's URL and public publishable key.
 5. Confirm the URL is the project root (`https://odulayjarrfqaggemftw.supabase.co`), not the REST endpoint ending in `/rest/v1/`.
 
 Only use the public browser key here. **Never paste a `sb_secret_...` key, `service_role` key, database password, SMTP password, or any other secret into the HTML or a public repository.** The publishable key is designed to be public; the SQL security policies are what restrict database access. Supabase's current documentation says the older `anon` / `service_role` key pair is being deprecated by the end of 2026, so use the publishable key for a new project.
@@ -66,13 +67,47 @@ Alternative: use Netlify's static-site deploy flow. Upload the package folder co
 
 Use a nickname on the public leaderboard rather than your full name. Do not use a school name, phone number, home location, or other identifying detail. The signed-in community leaderboard reveals only that nickname and the scores you opt into sharing; it does not display email addresses or persistent account IDs.
 
+## 5A. Optional roster refresh to Lahman 2025
+
+The current embedded graph is still the original Lahman 2021.2 snapshot through 2020. The repository includes a migration builder at `tools/build_dugout_database.py`, but the migration has **not** been run on the live dataset yet.
+
+1. Download the official SABR/Lahman 2025 CSV release from <https://sabr.org/lahman-database/>.
+2. Extract `People.csv`, `Appearances.csv`, and `Teams.csv`. Optional files: `AllstarFull.csv`, `AwardsPlayers.csv`, and `HallOfFame.csv`.
+3. Run from the repository folder:
+
+   ```bash
+   python tools/build_dugout_database.py index.html People.csv Appearances.csv Teams.csv --allstar AllstarFull.csv --awards AwardsPlayers.csv --hof HallOfFame.csv --output index-updated.html
+   ```
+
+4. The default import includes MLB historical major-league league IDs only (NA, NL, AA, UA, PL, FL, AL). Negro Leagues and other league records are excluded by default; only use `--include-other-leagues` if you intentionally want a broader, separately explained historical dataset.
+5. Run the audit and graph/schedule checks against `index-updated.html`. Keep the original `index.html` and all 1,100 published daily puzzles unchanged until the migrated output passes the browser and puzzle regression tests.
+
+The builder preserves existing player IDs, team-season indices, and the published schedule. It writes a separate output file and will refuse to overwrite the source HTML. It does not replace browser QA or the manual release steps.
+
+## 5B. Latest migration results
+
+The pinned 2025 data migration completed successfully in GitHub Actions. The MLB-only preview contains 21,227 unique players (+17,536), 3,264 team-seasons, 221 team labels, and data through 2025. All 1,100 published daily puzzles were preserved and checked to retain a 2–5-link standard route. The route distribution is 308 at 2 links, 463 at 3, 300 at 4, and 29 at 5.
+
+- [Migration QA report](DUGOUT-2025-MIGRATION-RESULTS.md)
+- [Download preview artifact](https://github.com/ash1111-h/dugout/actions/runs/44839480607/artifacts/14679912920)
+
+The artifact contains `index-updated.html` and the CSV source files. It is not yet the committed `index.html`, and it has not been deployed to GitHub Pages. Keep `main` unchanged until browser, Supabase, and mobile acceptance tests pass.
+
 ## 6. Known limitations before a public launch
 
-- **The player graph is still based on Lahman 2021.2 and data through the 2020 MLB season.** The app footer says this. A Lahman release with statistics through 2025 now exists, but the embedded graph and puzzle schedule have not yet been rebuilt against it.
+- **The player graph now uses the SABR Lahman 2025 database** (21,227 players, data through the 2025 season). The original 1,100 daily puzzles are all kept; some were moved later to make room for modern-era puzzles (see "Modern-era mix and tests" below and `DUGOUT-2025-MIGRATION-RESULTS.md`).
 - **Leaderboard scores are client-reported.** Row Level Security prevents one player from editing another player's records and blocks future-dated rows, but it cannot prove that a player's browser really played the puzzle fairly. The leaderboard function returns up to 100 opted-in users per view. Do not advertise this as a cheat-proof competitive ranking. A true anti-cheat leaderboard requires server-side puzzle secrecy and result verification.
 - **The game schedule and answer graph are embedded in the HTML.** A technically curious user can inspect them. Server-side puzzle delivery would be needed to hide answers.
-- **Supabase configuration is required for accounts.** The included files cannot create a Supabase project or obtain your project keys automatically. Until you complete steps 1–3, the website works in guest mode and the account panel explains what is missing. Live authentication, email delivery, SQL policy behavior, and cross-device sync must be verified in your own Supabase project.
+- **Supabase configuration is required for accounts.** The current branch already contains a configured project URL and public publishable key, but the SQL scripts must be installed in that project. Live authentication, email delivery, SQL policy behavior, and cross-device sync must still be verified in the real project.
+- **Unlimited statistics are currently stored locally per guest/account browser profile.** They persist on that browser but are not part of the Supabase cloud-sync tables, so they do not follow the account to a second device.
 - **Custom email delivery is required before accepting signups from the general public.** Supabase's built-in SMTP service currently only sends to pre-authorized project-team addresses. Configure custom SMTP and test a non-team mailbox before sharing the signup page widely. Add a self-service account-deletion process before a broad public launch; this starter currently provides sign-in, sign-out, profile, and recovery, but not in-app account deletion.
+
+## Current branch upgrades
+
+- Completed-game rarity is calculated from the actual successful player sequence, not the example shortest route. Failed guesses are excluded; when the final successful player is adjacent to the target, the target is included as the last route node.
+- Rarity combines player connectivity, the existing player fame score, number of shared team-seasons, and a capped route-length factor. It is an estimate based on the embedded graph, not a live popularity ranking.
+- Unlimited played/win/loss totals, streaks, and guess distribution now persist in local storage, separated between guest and signed-in browser profiles. These stats are not cloud-synced.
+- Added a keyboard skip link and explicit accessible naming/description for the player autocomplete input.
 
 ## Security notes
 
@@ -96,3 +131,9 @@ The roster snapshot embedded in this version originated from Lahman Baseball Dat
 - Supabase API keys and browser security: <https://supabase.com/docs/guides/getting-started/api-keys>
 - Supabase email/password authentication: <https://supabase.com/docs/guides/auth/passwords>
 - Supabase redirect URL configuration: <https://supabase.com/docs/guides/auth/redirect-urls>
+
+## Modern-era mix and tests (Dugout 2.0)
+
+- Unlimited and generated Daily puzzles draw from four era lanes (classic, historical, veteran active since 2020, and "recent debut" = first MLB appearance in 2020 or later; this is a games-based proxy, not an official rookie designation). Weights are `ERA_MIX` in `index.html`.
+- The original 1,100 daily pairs are kept in `D.sch`. The Daily schedule starts on 2026-11-22 (puzzle #1). Days 1-4 and about a third of later days 1-1100 were swapped for modern-era pairs (`D.ovr`); the displaced originals play on days 1101-1512 (`D.ext`). Regenerate with `node tools/build_daily_overrides.js index.html 0.35`.
+- Tests (Node 20+, no dependencies except Playwright for the browser test): `node tests/audit_db.js index.html origin/main`, `node tests/coverage_sim.js index.html 400 1100`, `node tests/browser_test.js` (needs `playwright` with Chromium installed). Results are in `DUGOUT-2.0-BRANCH-QA.md`.

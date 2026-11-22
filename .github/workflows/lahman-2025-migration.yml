@@ -1,0 +1,82 @@
+name: Dugout 2.0 — Lahman 2025 migration preview
+
+on:
+  push:
+    branches: [dugout-2.0-upgrade]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download pinned SABR Lahman 2025 CSV source
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://raw.githubusercontent.com/cbwinslow/lahman-database-csv/0377e0b8d3f1b8f6710cc4faee7d842d0e81f344/data"
+          for file in People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv readme2025.txt; do
+            curl --fail --location --retry 4 --retry-delay 2 "$BASE/$file" --output "$file"
+          done
+          echo "Downloaded source files:"
+          wc -c People.csv Appearances.csv Teams.csv AllstarFull.csv AwardsPlayers.csv HallOfFame.csv readme2025.txt
+          grep -m1 -E '^The SABR Lahman Baseball Database' readme2025.txt
+
+      - name: Rebuild the roster from main's original data (reproducibility check)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:index.html > index-main.html
+          python tools/build_dugout_database.py index-main.html People.csv Appearances.csv Teams.csv \
+            --allstar AllstarFull.csv --awards AwardsPlayers.csv --hof HallOfFame.csv \
+            --output index-updated.html
+          python tools/splice_data.py index-updated.html index.html index-rebuilt.html
+          node tools/build_daily_overrides.js index-rebuilt.html 0.35
+          node - <<'JS'
+          const fs = require('fs');
+          const get = f => fs.readFileSync(f, 'utf8').match(/const D = (\{.*?\});\s*\n\(function \(\) \{/s)[1];
+          if (get('index-rebuilt.html') !== get('index.html')) { console.error('Embedded data in index.html does not match a fresh rebuild'); process.exit(1); }
+          console.log('Embedded data reproduces exactly from the pinned Lahman source.');
+          JS
+
+      - name: JavaScript syntax check
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');const m=/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g;let x,i=0;while((x=m.exec(h)))fs.writeFileSync('inline'+(i++)+'.js',x[1]);"
+          for f in inline*.js tests/*.js tools/*.js; do node --check "$f"; done
+
+      - name: Database, graph and schedule audit
+        run: node tests/audit_db.js index.html origin/main
+
+      - name: Modern-player coverage simulation
+        run: node tests/coverage_sim.js index.html 150 400 | tee coverage-report.json
+
+      - name: Upload migrated preview and audit summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dugout-2025-migration-preview
+          path: |
+            index-updated.html
+            coverage-report.json
+            People.csv
+            Appearances.csv
+            Teams.csv
+            readme2025.txt
+          if-no-files-found: error
+          retention-days: 14
