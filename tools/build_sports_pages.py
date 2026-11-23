@@ -67,6 +67,8 @@ def build(name, cfg):
     s = rep(s, "dugout-result.png", "dugout-%s-result.png" % cfg['key'], 0)
     s = rep(s, "Dugout ' + (G.mode === 'daily'", "%s ' + (G.mode === 'daily'" % cfg['title'])
     # sport-specific constants
+    s = rep(s, "const SPORT = 'baseball';", "const SPORT = '%s';" % cfg['key'])
+    s = rep(s, 'const DAY_LABEL_SHIFT = 1;', 'const DAY_LABEL_SHIFT = 0;')
     s = rep(s, 'Solid" players appeared in at least 10 games that season.', 'Solid" players: %s.' % cfg['solid_cmt'])
     s = rep(s, "function tsLabel(t) { return TS[t][0] + ' ' + TN[TS[t][1]]; }", "function tsLabel(t) { return %s + TN[TS[t][1]]; }" % cfg['season_label'])
     for k, (f, a, lo, hi) in cfg['diff'].items():

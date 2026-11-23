@@ -53,6 +53,17 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .sports a { padding: 7px 14px; border: 2px solid var(--ink); color: var(--ink); text-decoration: none; font-weight: 700; background: var(--surface); }
 .sports a[aria-current="page"] { background: var(--ink); color: var(--bg); }
 @media (max-width: 420px) { .sports { gap: 4px; } .sports a { padding: 6px 8px; font-size: 14px; } }
+.popbox { margin-top: 12px; }
+.pop-h, .md-h { font: 700 13px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 10px 0 4px; }
+.pop { list-style: none; margin: 0; padding: 0; }
+.pop li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px dashed var(--rule); }
+.pop .you { font: 700 11px var(--f-mono); background: var(--grass); color: var(--grass-ink); padding: 1px 6px; margin-left: 6px; }
+.pop-note { color: var(--muted); font-size: 14px; margin-top: 6px; }
+.mydugout h3 { margin: 12px 0 6px; font: 800 18px var(--f-display); text-transform: uppercase; letter-spacing: .03em; }
+.md-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.md-card { border: 1px solid var(--rule); padding: 8px 10px; background: var(--surface); font-size: 14px; }
+.md-card a { font-weight: 700; color: var(--ink); }
+.md-card a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--grass); text-underline-offset: 3px; }
 .sports a:focus-visible { outline: 3px solid var(--grass); outline-offset: 2px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 230px; }
 .brand svg { flex: none; width: 30px; height: 30px; }
@@ -239,6 +250,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
     </form>
     <div id="authSignedIn" hidden>
       <div class="auth-account-meta" id="authEmailLabel"></div>
+      <div class="mydugout" id="myDugout"></div>
       <p class="auth-note error" id="authDbSetupNote" hidden>Your account is signed in, but Dugout's database tables are not ready. Run the included supabase-schema.sql in your Supabase SQL Editor. Guest play remains available on this device.</p>
       <div id="authProfileFields">
         <label for="profileName">Public display name (2–24 characters)</label><input id="profileName" type="text" maxlength="24" autocomplete="nickname">
@@ -509,6 +521,11 @@ function dayNumOf(ds) { const a = ds.split('-').map(Number); return Math.round((
 // unordered-pair check, so different players on the same build receive the same puzzle
 // and a pair is not reused just because the prebuilt schedule ended.
 const DAILY_ANCHOR = Date.UTC(2026, 10, 22);
+const DAY_LABEL_SHIFT = 1; // baseball's internal day 1 was 2026-11-22; shown numbering starts at 1 on 2026-11-23 like the other sports
+function dayLabel(ds) { return dayNumOf(ds) - DAY_LABEL_SHIFT; }
+const SPORT = 'baseball';
+const SPORT_LABEL = { baseball: 'Baseball', football: 'Football', basketball: 'Basketball' };
+const SPORT_PAGE = { baseball: 'index.html', football: 'football.html', basketball: 'basketball.html' };
 const FUTURE_DAILY = new Map();
 const DAILY_PAIR_KEYS = new Set();
 if (Array.isArray(D.sch)) {
@@ -936,6 +953,7 @@ function renderAuthPanel() {
     $('profileName').value = cloud.profile.display_name || cloud.name || 'Player';
     $('leaderboardOptIn').checked = !!cloud.profile.show_on_leaderboard;
   }
+  if (cloud.id && profileReady) refreshMyDugout(); else renderMyDugout();
   if (!configured) authMessage('Accounts are not active yet. Follow the setup guide: create a Supabase project, run supabase-schema.sql, then paste your project URL and public publishable key into the two constants near the top of the JavaScript.', false);
 }
 function getRedirectUrl() {
@@ -1087,7 +1105,75 @@ function syncBoard() {
     }, { onConflict: 'user_id,puzzle_date' });
     if (error) throw error;
     renderBoard();
+    try { await syncPicks(userId, date); } catch (e) { /* picks are a bonus; never block the board */ }
+    await loadPopular(date);
+    refreshMyDugout(true);
   });
+}
+// ---- most-used players (community) and "My Dugout" (one account, all sports) ----
+const popCache = {};
+let myCache = null, myUser = null, myBusy = false;
+async function syncPicks(userId, date) {
+  if (!SB || !G || G.mode !== 'daily' || G.arch || G.id !== date || !G.won || cloud.id !== userId) return;
+  const ids = [...new Set(G.log.filter(e => e.ok && e.pid !== G.target && e.pid !== G.start).map(e => P[e.pid].i))].slice(0, 5);
+  if (!ids.length) return;
+  const rows = ids.map(id => ({ user_id: userId, sport: SPORT, puzzle_date: date, player_id: id }));
+  const { error } = await SB.from('dugout_path_picks').upsert(rows, { onConflict: 'user_id,sport,puzzle_date,player_id', ignoreDuplicates: true });
+  if (error) throw error;
+}
+async function loadPopular(date) {
+  if (!SB || !cloud.dbReady || !cloud.id) return;
+  const key = SPORT + '|' + date;
+  try {
+    const { data, error } = await SB.rpc('dugout_popular_picks', { p_sport: SPORT, p_puzzle_date: date });
+    if (error) throw error;
+    popCache[key] = { rows: data || [] };
+  } catch (e) { popCache[key] = { error: true }; }
+  fillPopular();
+}
+function fillPopular() {
+  const el = $('popBox'); if (!el || !G || !G.done || G.mode !== 'daily' || G.arch) return;
+  let h = '';
+  if (cloud.state === 'checking') h = '';
+  else if (!cloud.id) h = '<div class="pop-note">Sign in (one account works on baseball, football and basketball) to see which players other solvers used.</div>';
+  else {
+    const c = popCache[SPORT + '|' + G.id];
+    if (!c) h = '<div class="pop-note">Loading what other solvers used\u2026</div>';
+    else if (c.error) h = '';
+    else if (!c.rows.length) h = '<div class="pop-note">Most-used players appear here once 3 players have solved today\u2019s puzzle.</div>';
+    else {
+      const fin = Math.max(1, Number(c.rows[0].finishers)); const mine = new Set(G.log.filter(e => e.ok).map(e => P[e.pid].i));
+      h = '<div class="pop-h">Most-used players today</div><ol class="pop">' + c.rows.slice(0, 5).map(r => {
+        const ix = IDX.get(r.player_id); const nm = ix === undefined ? 'Unknown player' : dn(ix);
+        return '<li><span>' + esc(nm) + (mine.has(r.player_id) ? ' <b class="you">you</b>' : '') + '</span><span>' + Math.round(100 * Number(r.picks) / fin) + '%</span></li>';
+      }).join('') + '</ol><div class="pop-note">Share of the ' + fin + ' players who solved it.</div>';
+    }
+  }
+  el.innerHTML = h;
+}
+async function refreshMyDugout(force) {
+  if (!SB || !cloud.id || !cloud.dbReady || myBusy) return;
+  if (!force && myUser === cloud.id) return;
+  myBusy = true; myUser = cloud.id;
+  try { const { data, error } = await SB.rpc('dugout_my_dugout'); if (error) throw error; myCache = data; } catch (e) { myCache = null; }
+  myBusy = false; renderMyDugout();
+}
+function renderMyDugout() {
+  const el = $('myDugout'); if (!el) return;
+  if (!cloud.id) { myCache = null; myUser = null; el.innerHTML = ''; return; }
+  if (!myCache) { el.innerHTML = ''; return; }
+  const rec = {}; (myCache.record || []).forEach(r => { rec[r.sport] = r; });
+  let h = '<h3>My Dugout</h3><div class="md-grid">';
+  for (const sp of ['baseball', 'football', 'basketball']) {
+    const r = rec[sp];
+    h += '<div class="md-card"><a href="' + SPORT_PAGE[sp] + '"' + (sp === SPORT ? ' aria-current="page"' : '') + '>' + SPORT_LABEL[sp] + '</a>' +
+      (r ? '<div>' + r.wins + ' won of ' + r.played + '</div><div>Streak ' + r.current + ' (best ' + r.best + ')</div>' : '<div>Not played yet</div>') + '</div>';
+  }
+  h += '</div>';
+  const fav = (myCache.favorites || []).filter(f => f.sport === SPORT).map(f => { const ix = IDX.get(f.player_id); return ix === undefined ? null : { n: dn(ix), u: f.uses }; }).filter(Boolean).slice(0, 5);
+  h += fav.length ? '<div class="pop-h">Your most-used ' + SPORT_LABEL[SPORT].toLowerCase() + ' players</div><ol class="pop">' + fav.map(f => '<li><span>' + esc(f.n) + '</span><span>' + f.u + '\u00d7</span></li>').join('') + '</ol>'
+    : '<div class="pop-note">Your most-used ' + SPORT_LABEL[SPORT].toLowerCase() + ' players show up here after you solve a Daily while signed in.</div>';
+  el.innerHTML = h;
 }
 async function renderBoard() {
   const note = $('boardNote'), ol = $('boardList');
@@ -1489,9 +1575,9 @@ function hint(level) {
 }
 function countdown() { const s = secondsToPacificMidnight(); return Math.floor(s / 3600) + 'h ' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + 'm ' + String(s % 60).padStart(2, '0') + 's'; }
 function fillArchive() {
-  const sel = $('arch'); let h = '<option value="' + TODAY + '">Today, #' + dayNumOf(TODAY) + '</option>', ds = TODAY;
+  const sel = $('arch'); let h = '<option value="' + TODAY + '">Today, #' + dayLabel(TODAY) + '</option>', ds = TODAY;
   for (let k = 0; k < 60; k++) {
-    ds = prevDay(ds); const n = dayNumOf(ds); if (n < 1) break;
+    ds = prevDay(ds); const n = dayLabel(ds); if (n < 1) break;
     const sv = store.arch[ds]; const tag = sv && sv.done ? (sv.won ? ' (solved ' + sv.log.length + '/6)' : ' (missed)') : '';
     h += '<option value="' + ds + '">#' + n + ' ' + DAYS[weekdayOf(ds)].slice(0, 3) + ' ' + ds.slice(5) + tag + '</option>';
   }
@@ -1506,7 +1592,7 @@ function render() {
   document.querySelector('.wrap').classList.toggle('done', G.done);
   let ph = '<span class="lbl">Guesses</span>';
   for (let i = 0; i < MAXA; i++) { const e = G.log[i]; ph += '<span class="pip ' + (e ? (e.ok ? 'ok' : 'bad') : '') + '"></span>'; }
-  if (mode === 'daily') ph += '<span class="dl">Puzzle #' + dayNumOf(G.id) + '</span>';
+  if (mode === 'daily') ph += '<span class="dl">Puzzle #' + dayLabel(G.id) + '</span>';
   $('pips').innerHTML = ph;
   let h = '<div class="card start"><div class="k">Start</div><div class="nm">' + esc(P[G.start].n) + '</div><div class="yrs">' + yrs(G.start) + '</div>' + chips(G.start) + '</div>';
   let c = G.start, n = 0;
@@ -1542,7 +1628,7 @@ function render() {
     const solvedPath = actualSolvedPath();
     const rarity = solvedPath ? scorePathRarity(solvedPath) : null;
     const rarityShare = rarity ? ' | ' + rarity.tier + ' path (' + rarity.score + '/99)' : '';
-    const sharetxt = 'Dugout ' + (G.mode === 'daily' ? '#' + dayNumOf(G.id) + ' ' : '') + score + (G.hints ? ' \ud83d\udca1' + (G.hints > 1 ? ' x' + G.hints : '') : '') + rarityShare + '\n' + grid;
+    const sharetxt = 'Dugout ' + (G.mode === 'daily' ? '#' + dayLabel(G.id) + ' ' : '') + score + (G.hints ? ' \ud83d\udca1' + (G.hints > 1 ? ' x' + G.hints : '') : '') + rarityShare + '\n' + grid;
     let route = '';
     const path = pathBetween(G.start, G.target);
     if (path) {
@@ -1552,23 +1638,25 @@ function render() {
     if (G.mode === 'daily' && !G.arch) foot = '<div class="route" id="nextIn">Next daily puzzle in ' + countdown() + ' (midnight Pacific).</div>';
     if (G.arch) foot = '<div class="route">Archive puzzles do not count toward streaks or the leaderboard.</div>';
     if (G.mode === 'free' && run > 1) foot = '<div class="route">Run: ' + run + ' puzzles in a row.</div>';
+    const popHtml = (G.mode === 'daily' && !G.arch) ? '<div class="popbox" id="popBox"></div>' : '';
     rb.innerHTML = '<div class="result ' + (G.won ? 'win' : 'loss') + '"><h2>' + (G.won ? 'Safe at home' : 'Out at the plate') + '</h2>' +
       '<div>' + (G.won ? 'Connected in ' + G.log.length + ' of ' + MAXA + ' guesses' + (G.hints ? ' with ' + G.hints + ' hint' + (G.hints === 1 ? '' : 's') : '') + '.' : 'You ran out of guesses.') + '</div>' +
       '<div class="grid">' + grid + '</div>' +
       (rarity ? '<div class="rarity-card"><div class="rarity-kicker">Your path rarity</div><div class="rarity-line"><span class="rarity-score">' + rarity.score + '/99</span><span class="rarity-tier">' + rarity.tier + '</span></div><div class="rarity-note">Based on the successful route you played, including its teammate connections — not the shortest possible route.</div></div>' : '') + route +
-      '<div class="row"><button type="button" class="btn" id="bShare">Copy result</button>' + '<button type="button" class="btn ghost" id="bImg">Save image</button><button type="button" class="btn ghost" id="bChal">Copy challenge link</button>' + (G.mode === 'free' ? '<button type="button" class="btn ghost" id="bAgain">Next puzzle</button>' : '') + (G.arch ? '<button type="button" class="btn ghost" id="bToday">Back to today</button>' : '') + '</div>' + foot +
+      popHtml + '<div class="row"><button type="button" class="btn" id="bShare">Copy result</button>' + '<button type="button" class="btn ghost" id="bImg">Save image</button><button type="button" class="btn ghost" id="bChal">Copy challenge link</button>' + (G.mode === 'free' ? '<button type="button" class="btn ghost" id="bAgain">Next puzzle</button>' : '') + (G.arch ? '<button type="button" class="btn ghost" id="bToday">Back to today</button>' : '') + '</div>' + foot +
       '<textarea class="sharebox" id="shareTxt" rows="2" readonly hidden></textarea></div>';
     $('bShare').onclick = () => {
       const ta = $('shareTxt'); ta.value = sharetxt;
       const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); };
       try { navigator.clipboard.writeText(sharetxt).then(() => { $('bShare').textContent = 'Copied'; }, fallback); } catch (e) { fallback(); }
     };
-    $('bImg').onclick = () => saveShareImage({ start: dn(G.start), target: dn(G.target), log: G.log.map(e => !!e.ok), won: G.won, score: score, sub: G.mode === 'daily' ? 'Puzzle #' + dayNumOf(G.id) : (G.mode === 'free' ? 'Unlimited' : 'Challenge'), rarity: rarity ? rarity.tier + ' path (' + rarity.score + '/99)' : '' });
+    $('bImg').onclick = () => saveShareImage({ start: dn(G.start), target: dn(G.target), log: G.log.map(e => !!e.ok), won: G.won, score: score, sub: G.mode === 'daily' ? 'Puzzle #' + dayLabel(G.id) : (G.mode === 'free' ? 'Unlimited' : 'Challenge'), rarity: rarity ? rarity.tier + ' path (' + rarity.score + '/99)' : '' });
     $('bChal').onclick = () => {
       const url = challengeUrl(), ta = $('shareTxt'); ta.value = url;
       const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); };
       try { navigator.clipboard.writeText(url).then(() => { $('bChal').textContent = 'Link copied'; }, fallback); } catch (e) { fallback(); }
     };
+    fillPopular();
     if ($('bAgain')) $('bAgain').onclick = startFree;
     if ($('bToday')) $('bToday').onclick = () => startDaily(TODAY);
   }

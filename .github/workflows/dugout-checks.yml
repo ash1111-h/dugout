@@ -87,7 +87,9 @@ jobs:
 
       - name: Sport page browser tests
         shell: bash
-        run: node tests/sports_browser_test.js "$RUNNER_TEMP/sport-shots"
+        run: |
+          node tests/sports_browser_test.js "$RUNNER_TEMP/sport-shots"
+          node tests/cloud_stub_test.js
 
       - name: Upload browser screenshots
         if: always()

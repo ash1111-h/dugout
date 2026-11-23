@@ -129,7 +129,7 @@ for k, v in uniq.values():
     nk = norm(v['n'])
     a_pts = sum(aw.get((nk, y), 0) for y in allys)
     sc = a_pts * 2 + v['ws'] + min(len(ys), 15) * 0.4
-    pid = v.get('nbaid') or k
+    pid = v.get('nbaid') or 'A' + __import__('hashlib').md5(k.encode()).hexdigest()[:10]  # short ids (the database limits ids to 20 chars)
     if pid in used: pid = k
     used.add(pid)
     P.append({'i': pid, 'n': v['n'], 'a': allys[0], 'b': allys[-1], 'f': 0, 't': [ts_id(y, t) for y, t in solid],

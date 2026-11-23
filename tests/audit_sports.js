@@ -4,6 +4,7 @@ let failed = 0; const ck = (n, ok, d = '') => { if (!ok) failed++; console.log((
 for (const [name, file, minPlayers, yMin, yMax] of [['football', 'nfl.json', 9000, 1999, 2025], ['basketball', 'nba.json', 3000, 1950, 2026]]) {
   const d = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'sports', file), 'utf8')); const { p, ts, tn } = d;
   ck(`[${name}] enough players`, p.length >= minPlayers, p.length + ' players');
+  ck(`[${name}] IDs fit the database limit (2-20 chars)`, p.every(x => x.i.length >= 2 && x.i.length <= 20));
   ck(`[${name}] unique IDs`, new Set(p.map(x => x.i)).size === p.length);
   ck(`[${name}] team-season refs valid`, p.every(x => x.t.concat(x.x).every(t => Number.isInteger(t) && t >= 0 && t < ts.length)) && ts.every(([y, t]) => t >= 0 && t < tn.length));
   ck(`[${name}] solid and cameo sets disjoint, every player has a solid season`, p.every(x => x.t.length > 0 && !x.t.some(t => x.x.includes(t))));

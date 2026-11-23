@@ -240,3 +240,9 @@ grant execute on function public.dugout_delete_my_account() to authenticated;
 -- same RLS pattern and win-consistency check as baseball, first-write-wins trigger,
 -- dugout_sport_leaderboard(p_sport, p_mode, p_puzzle_date), and dugout_delete_my_account() extended to clear them.
 -- The full SQL is recorded in the Supabase migration "dugout_sport_tables_and_leaderboard".
+
+-- ===== Shared picks + My Dugout (applied to the live project 2026-11-23) =====
+-- dugout_path_picks (sport in baseball|football|basketball; insert policy requires a recorded win; BEFORE INSERT trigger caps 6 per puzzle),
+-- dugout_popular_picks(p_sport, p_puzzle_date) (needs the caller to have a result for that puzzle and 3+ solvers),
+-- dugout_my_dugout() (record + favorites as jsonb), and dugout_delete_my_account() extended to clear everything.
+-- Full SQL: Supabase migrations dugout_path_picks_and_my_dugout, dugout_path_picks_policy_fix, dugout_path_picks_cap_trigger.

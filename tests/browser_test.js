@@ -33,8 +33,8 @@ async function runViewport(browser, label, ctxOpts) {
   check(`[${label}] no JavaScript errors on load (Supabase blocked)`, errors.length === 0, errors.join(' | '));
   // date-based consistency: UI shows the same puzzle the deterministic schedule gives for 2026-11-20 (day 2)
   const sn = await page.textContent('#top .card.start .nm'), tn = await page.textContent('#bottom .card.target .nm');
-  check(`[${label}] Daily #2 (2026-11-23) matches schedule`, sn === nameOf(day2.start) && tn === nameOf(day2.target), `${sn} -> ${tn}`);
-  check(`[${label}] puzzle number shown`, /Puzzle #2/.test(await page.textContent('#pips')));
+  check(`[${label}] Daily (2026-11-23, shown as #1) matches schedule`, sn === nameOf(day2.start) && tn === nameOf(day2.target), `${sn} -> ${tn}`);
+  check(`[${label}] puzzle number shown`, /Puzzle #1/.test(await page.textContent('#pips')));
   // layout
   const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   check(`[${label}] no horizontal overflow`, ov.sw <= ov.iw + 1, `${ov.sw} vs ${ov.iw}`);
@@ -63,7 +63,7 @@ async function runViewport(browser, label, ctxOpts) {
   check(`[${label}] rarity card shown`, /\d+\/99/.test(ratA), ratA);
   await page.click('#bShare'); await page.waitForTimeout(150);
   const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => '')) || await page.inputValue('#shareTxt');
-  check(`[${label}] share text has puzzle #, score, rarity and grid`, /^Dugout #2 \d\/6 \| .+ path \(\d+\/99\)\n/.test(clip) && clip.includes('🟥') && clip.includes('🏠'), JSON.stringify(clip));
+  check(`[${label}] share text has puzzle #, score, rarity and grid`, /^Dugout #1 \d\/6 \| .+ path \(\d+\/99\)\n/.test(clip) && clip.includes('🟥') && clip.includes('🏠'), JSON.stringify(clip));
   await page.screenshot({ path: path.join(outDir, `${label}-result.png`), fullPage: true });
   // rarity ignores failed guesses: replay the identical route with extra wrong guesses -> same score
   await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForSelector('#top .card.start');
