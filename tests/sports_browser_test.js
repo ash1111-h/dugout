@@ -7,11 +7,11 @@ const outDir = process.argv[2] || path.join(require('os').tmpdir(), 'dugout-spor
 let failed = 0;
 const check = (name, ok, detail = '') => { if (!ok) failed++; console.log((ok ? 'PASS ' : 'FAIL ') + name + (detail ? ' — ' + detail : '')); };
 const NOW = new Date('2026-11-23T12:00:00-08:00');
-const PAGES = [['football', 'Dugout Football', '🏈'], ['basketball', 'Dugout Basketball', '🏀']];
+const PAGES = [['football', 'Huddle', '🏈', 'Football', 'Touchdown'], ['basketball', 'Fast Break', '🏀', 'Basketball', 'Bucket']];
 (async () => {
   const browser = await chromium.launch();
   for (const [vp, opts] of [['desktop', { viewport: { width: 1280, height: 800 } }], ['iphone', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }]]) {
-    for (const [key, title, emoji] of PAGES) {
+    for (const [key, title, emoji, sportWord, winWord] of PAGES) {
       const html = path.join(root, key + '.html'); const H = require('./harness')(html);
       const label = vp + '/' + key;
       const ctx = await browser.newContext({ ...opts, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -24,9 +24,9 @@ const PAGES = [['football', 'Dugout Football', '🏈'], ['basketball', 'Dugout B
       check(`[${label}] loads with no JS errors`, errors.length === 0, errors.join(' | '));
       check(`[${label}] title and heading`, (await page.title()) === title && (await page.textContent('h1')) === title);
       const links = await page.locator('nav.sports a').allTextContents();
-      check(`[${label}] sport switcher shows all three, current page marked`, links.length === 3 && (await page.locator('nav.sports a[aria-current="page"]').textContent()).includes(title.split(' ')[1]), links.join(' | '));
+      check(`[${label}] sport switcher shows all three, current page marked`, links.length === 3 && (await page.locator('nav.sports a[aria-current="page"]').textContent()).includes(sportWord), links.join(' | '));
       check(`[${label}] account panel present and uses the sport tables`, (await page.locator('#acct').count()) === 1 && (await page.content()).includes("dugout_sport_results") && !(await page.content()).includes('dugout_daily_results'));
-      check(`[${label}] no baseball wording on the page`, !/baseball|MLB|Lahman|innings/i.test((await page.evaluate(() => document.body.innerText)).replace('⚾ Baseball', '')));
+      check(`[${label}] no baseball wording on the page`, !/baseball|MLB|Lahman|innings|dugout|safe at home|plate/i.test((await page.evaluate(() => document.body.innerText)).replace('⚾ Baseball', '')));
       const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
       check(`[${label}] no horizontal overflow`, ov.sw <= ov.iw + 1, `${ov.sw} vs ${ov.iw}`);
       const day = H.dailyPuzzleFor('2026-11-23');
@@ -41,7 +41,7 @@ const PAGES = [['football', 'Dugout Football', '🏈'], ['basketball', 'Dugout B
         await li.first().click();
       }
       await page.waitForSelector('#resultBox .result.win');
-      check(`[${label}] winning the daily works`, true);
+      check(`[${label}] win headline uses the sport's own wording`, (await page.textContent('#resultBox h2')) === winWord && (await page.textContent('#resultBox .grid')).includes(key === 'football' ? '🏈' : '🏀'));
       await page.click('#bShare'); await page.waitForTimeout(150);
       const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => '')) || await page.inputValue('#shareTxt');
       check(`[${label}] share text names the sport and the puzzle`, clip.startsWith(title + ' #1'), clip.split('\n')[0]);
@@ -60,7 +60,7 @@ const PAGES = [['football', 'Dugout Football', '🏈'], ['basketball', 'Dugout B
   const hrefs = await page.locator('nav.sports a').evaluateAll(a => a.map(x => x.getAttribute('href')));
   check('[baseball] switcher links to the other two pages', hrefs.join() === 'index.html,football.html,basketball.html', hrefs.join());
   await page.click('nav.sports a[href="football.html"]'); await page.waitForSelector('#top .card.start');
-  check('[baseball->football] navigation works', (await page.title()) === 'Dugout Football');
+  check('[baseball->football] navigation works', (await page.title()) === 'Huddle');
   await browser.close();
   console.log(failed ? `\n${failed} FAILED` : '\nALL PASSED'); process.exit(failed ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

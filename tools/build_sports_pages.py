@@ -22,7 +22,8 @@ THEMES = {
 }
 SPORTS = {
  'football': dict(
-   file='football.html', data='data/sports/nfl.json', title='Dugout Football', emoji='🏈', key='football',
+   file='football.html', data='data/sports/nfl.json', title='Huddle', emoji='🏈', key='football', win='Touchdown', loss='Turnover', glyph='\\ud83c\\udfc8', theme_color='#e8ecf3',
+   share=dict(bg='#0d1a36', band='#16264d', accent='#f2c14e', ink='#eef2fb', muted='#9db0d6', ok='#3aa55d', bad='#d0493f'),
    tag='Link two NFL players through teammates', desc='A daily NFL puzzle: connect two football players through shared teammates and seasons.',
    anchor='Date.UTC(2026, 10, 23)', modern=2023, newest=2025,
    diff=dict(easy=(10, 2000, 2, 3), medium=(8, 1995, 3, 4), hard=(6, 1985, 4, 5)),
@@ -33,7 +34,8 @@ SPORTS = {
    foot='Football data: nflverse (nflreadr / nflverse-data on GitHub; CC BY 4.0). Rosters cover 1999–2025, so players who retired earlier do not appear. Rosters are end-of-season snapshots, so a player traded mid-season may show only for the team he finished with. Standard links use players on a team\'s active or injured-reserve roster; practice-squad stays count and are labeled. Daily puzzles are generated deterministically from 2026-11-23. “Recent debut” means a first NFL season in 2023 or later.',
    season_label="TS[t][0] + ' '"),
  'basketball': dict(
-   file='basketball.html', data='data/sports/nba.json', title='Dugout Basketball', emoji='🏀', key='basketball',
+   file='basketball.html', data='data/sports/nba.json', title='Fast Break', emoji='🏀', key='basketball', win='Bucket', loss='Airball', glyph='\\ud83c\\udfc0', theme_color='#f3ebe0',
+   share=dict(bg='#2a160a', band='#3d2310', accent='#ff9a5c', ink='#fbf1e4', muted='#c9a98a', ok='#3aa55d', bad='#d0493f'),
    tag='Link two NBA players through teammates', desc='A daily NBA puzzle: connect two basketball players through shared teammates and seasons.',
    anchor='Date.UTC(2026, 10, 23)', modern=2023, newest=2025,
    diff=dict(easy=(10, 1990, 2, 3), medium=(8, 1975, 3, 4), hard=(6, 1960, 4, 5)),
@@ -65,7 +67,11 @@ def build(name, cfg):
     s = rep(s, "im.textContent = '⚾'", "im.textContent = '%s'" % cfg['emoji'])
     s = rep(s, "(short stint)", cfg['short'])
     s = rep(s, "dugout-result.png", "dugout-%s-result.png" % cfg['key'], 0)
-    s = rep(s, "Dugout ' + (G.mode === 'daily'", "%s ' + (G.mode === 'daily'" % cfg['title'])
+    s = rep(s, "const GAME_NAME = 'Dugout';", "const GAME_NAME = '%s';" % cfg['title'])
+    s = rep(s, "const TERMS = { win: 'Safe at home', loss: 'Out at the plate', glyph: '\\ud83c\\udfe0' };", "const TERMS = { win: '%s', loss: '%s', glyph: '%s' };" % (cfg['win'], cfg['loss'], cfg['glyph']))
+    sh = cfg['share']
+    s = rep(s, "const SHARE_THEME = { bg: '#14301f', band: '#1d4a2f', accent: '#e0b84c', ink: '#f5f1e4', muted: '#9bb8a6', ok: '#3aa55d', bad: '#c8483f' };", "const SHARE_THEME = { bg: '%(bg)s', band: '%(band)s', accent: '%(accent)s', ink: '%(ink)s', muted: '%(muted)s', ok: '%(ok)s', bad: '%(bad)s' };" % sh)
+    s = rep(s, '<meta name="theme-color" content="#eef0e6">', '<meta name="theme-color" content="%s">' % cfg['theme_color'])
     # sport-specific constants
     s = rep(s, "const SPORT = 'baseball';", "const SPORT = '%s';" % cfg['key'])
     s = rep(s, 'const DAY_LABEL_SHIFT = 1;', 'const DAY_LABEL_SHIFT = 0;')

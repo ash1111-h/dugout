@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
-<title>Dugout Basketball</title>
+<title>Fast Break</title>
 <meta name="description" content="A daily NBA puzzle: connect two basketball players through shared teammates and seasons.">
-<meta name="theme-color" content="#eef0e6">
+<meta name="theme-color" content="#f3ebe0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -64,6 +64,43 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .md-card { border: 1px solid var(--rule); padding: 8px 10px; background: var(--surface); font-size: 14px; }
 .md-card a { font-weight: 700; color: var(--ink); }
 .md-card a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--grass); text-underline-offset: 3px; }
+/* ---- visual polish ---- */
+body { background: radial-gradient(900px 380px at 50% -140px, color-mix(in srgb, var(--grass) 16%, transparent), transparent 70%), var(--bg); background-attachment: fixed; }
+::selection { background: color-mix(in srgb, var(--grass) 35%, transparent); }
+header { border-bottom-width: 3px; }
+.brand svg { color: var(--grass); width: 34px; height: 34px; }
+h1 { letter-spacing: .04em; }
+.tag { letter-spacing: .02em; }
+.sports a, .btn, .ibtn, .seg, select, .card, .panel, .result, .acct, .rarity-card, .hintmsg, .md-card, .sharebox { border-radius: 8px; }
+.sports a { border-radius: 999px; border-width: 1.5px; transition: background .15s, color .15s, transform .12s, box-shadow .15s; }
+.sports a:not([aria-current="page"]):hover { background: var(--rule); transform: translateY(-1px); }
+.sports a[aria-current="page"] { box-shadow: 0 6px 14px -8px var(--ink); }
+.btn, .ibtn, .seg button { transition: transform .12s, box-shadow .15s, filter .15s, background .15s; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.07); box-shadow: 0 8px 16px -10px var(--grass); }
+.btn:active:not(:disabled), .ibtn:active { transform: none; box-shadow: none; }
+.ibtn:hover { background: var(--surface); border-color: var(--ink); }
+.card { box-shadow: 0 1px 0 var(--rule), 0 10px 22px -16px rgba(0,0,0,.45); }
+.card.link, .card.target.solved { box-shadow: 0 1px 0 var(--rule), 0 10px 24px -14px var(--grass); }
+.panel, .acct { box-shadow: 0 8px 20px -18px rgba(0,0,0,.5); }
+.inrow input { border-radius: 8px; transition: box-shadow .15s, border-color .15s; }
+.inrow input:focus { outline: none; border-color: var(--grass); box-shadow: 0 0 0 4px color-mix(in srgb, var(--grass) 22%, transparent); }
+.opts { border-radius: 8px; overflow: hidden; box-shadow: 0 18px 34px -18px rgba(0,0,0,.55); }
+.pip { border-radius: 3px; transition: background .2s, border-color .2s; }
+.result { border-color: var(--ink); box-shadow: 0 14px 34px -22px rgba(0,0,0,.6); }
+.result.win { border-color: var(--grass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--grass) 18%, transparent), 0 18px 40px -20px var(--grass); background: linear-gradient(180deg, color-mix(in srgb, var(--grass) 9%, var(--surface)), var(--surface) 60%); }
+.result.loss { border-color: var(--brick); background: linear-gradient(180deg, color-mix(in srgb, var(--brick) 8%, var(--surface)), var(--surface) 60%); }
+.result h2 { font-size: 38px; }
+.rarity-card { background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 12%, var(--surface)), var(--surface)); }
+.dist i { border-radius: 0 4px 4px 0; }
+.lb li.me { border-radius: 6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .result { animation: rise .45s cubic-bezier(.2,.8,.2,1); }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+  .pip.ok, .pip.bad { animation: pipin .3s ease-out; }
+  @keyframes pipin { from { transform: scaleX(.3); } to { transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (forced-colors: active) { .card, .result, .panel { border: 1px solid CanvasText; box-shadow: none; } }
 .sports a:focus-visible { outline: 3px solid var(--grass); outline-offset: 2px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 230px; }
 .brand svg { flex: none; width: 30px; height: 30px; }
@@ -209,7 +246,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
   <header>
     <div class="brand">
       <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3 16h26M16 3v26M6.5 6.5c5 4.5 5 14.5 0 19M25.5 6.5c-5 4.5-5 14.5 0 19" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-      <div><h1>Dugout Basketball</h1><div class="tag">Link two NBA players through teammates</div></div>
+      <div><h1>Fast Break</h1><div class="tag">Link two NBA players through teammates</div></div>
     </div>
     <div class="hbtns">
       <button type="button" class="ibtn" id="bHelp" aria-pressed="false" aria-expanded="false" aria-controls="help">How to play</button>
@@ -235,7 +272,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
         <button type="button" id="authSignUpMode" aria-pressed="false">Create account</button>
       </div>
       <form id="authForm">
-        <div id="authDisplayRow" hidden><label for="authDisplayName">Display name (2–24 characters)</label><input id="authDisplayName" type="text" maxlength="24" autocomplete="nickname" placeholder="Your Dugout name"></div>
+        <div id="authDisplayRow" hidden><label for="authDisplayName">Display name (2–24 characters)</label><input id="authDisplayName" type="text" maxlength="24" autocomplete="nickname" placeholder="Your display name"></div>
         <label for="authEmail">Email</label><input id="authEmail" type="email" maxlength="254" required autocomplete="email" placeholder="you@example.com">
         <label for="authPassword">Password (at least 8 characters)</label><input id="authPassword" type="password" minlength="8" maxlength="128" required autocomplete="current-password" placeholder="Password">
         <div class="auth-actions"><button class="btn" id="authSubmit" type="submit">Sign in</button><button class="btn ghost" type="button" id="authForgot">Forgot password?</button><button class="btn ghost" type="button" id="authResendConfirm">Resend confirmation</button></div>
@@ -252,7 +289,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
     <div id="authSignedIn" hidden>
       <div class="auth-account-meta" id="authEmailLabel"></div>
       <div class="mydugout" id="myDugout"></div>
-      <p class="auth-note error" id="authDbSetupNote" hidden>Your account is signed in, but Dugout's database tables are not ready. Run the included supabase-schema.sql in your Supabase SQL Editor. Guest play remains available on this device.</p>
+      <p class="auth-note error" id="authDbSetupNote" hidden>Your account is signed in, but the database tables are not ready. Run the included supabase-schema.sql in your Supabase SQL Editor. Guest play remains available on this device.</p>
       <div id="authProfileFields">
         <label for="profileName">Public display name (2–24 characters)</label><input id="profileName" type="text" maxlength="24" autocomplete="nickname">
         <label class="optin"><input id="leaderboardOptIn" type="checkbox"> Show my display name and scores on the public leaderboard</label>
@@ -525,6 +562,9 @@ const DAILY_ANCHOR = Date.UTC(2026, 10, 23);
 const DAY_LABEL_SHIFT = 0; // baseball's internal day 1 was 2026-11-22; shown numbering starts at 1 on 2026-11-23 like the other sports
 function dayLabel(ds) { return dayNumOf(ds) - DAY_LABEL_SHIFT; }
 const SPORT = 'basketball';
+const GAME_NAME = 'Fast Break';
+const TERMS = { win: 'Bucket', loss: 'Airball', glyph: '\ud83c\udfc0' };
+const SHARE_THEME = { bg: '#2a160a', band: '#3d2310', accent: '#ff9a5c', ink: '#fbf1e4', muted: '#c9a98a', ok: '#3aa55d', bad: '#d0493f' };
 const SPORT_LABEL = { baseball: 'Baseball', football: 'Football', basketball: 'Basketball' };
 const SPORT_PAGE = { baseball: 'index.html', football: 'football.html', basketball: 'basketball.html' };
 const FUTURE_DAILY = new Map();
@@ -873,7 +913,7 @@ function readStoreKey(key) {
     // A single damaged local save should not prevent the game from opening.
   }
   try { window.localStorage.removeItem(key); } catch (e) { /* The game remains playable without storage. */ }
-  storageProblem = 'A damaged local save was ignored. Dugout started a fresh local save for this browser.';
+  storageProblem = 'A damaged local save was ignored. A fresh local save was started for this browser.';
   return null;
 }
 function switchLocalStore(userId) {
@@ -901,7 +941,7 @@ function renderAccount() {
     ds.textContent = 'Your daily progress and stats sync with your account.';
   } else if (cloud.state === 'on') {
     nm.textContent = 'Signed in · cloud setup incomplete';
-    ds.textContent = 'Account sign-in works, but the Dugout database setup needs attention.';
+    ds.textContent = 'Account sign-in works, but the database setup needs attention.';
   } else if (SB) {
     nm.textContent = 'Playing as guest';
     ds.textContent = 'Sign in to sync your progress across devices. Guest progress stays in this browser.';
@@ -1164,7 +1204,7 @@ function renderMyDugout() {
   if (!cloud.id) { myCache = null; myUser = null; el.innerHTML = ''; return; }
   if (!myCache) { el.innerHTML = ''; return; }
   const rec = {}; (myCache.record || []).forEach(r => { rec[r.sport] = r; });
-  let h = '<h3>My Dugout</h3><div class="md-grid">';
+  let h = '<h3>My games</h3><div class="md-grid">';
   for (const sp of ['baseball', 'football', 'basketball']) {
     const r = rec[sp];
     h += '<div class="md-card"><a href="' + SPORT_PAGE[sp] + '"' + (sp === SPORT ? ' aria-current="page"' : '') + '>' + SPORT_LABEL[sp] + '</a>' +
@@ -1266,7 +1306,7 @@ async function initCloud() {
       if (authRecovery) {
         $('authPanel').hidden = false; $('bAuth').setAttribute('aria-expanded', 'true');
         renderAuthPanel();
-        authMessage('Choose a new password for your Dugout account.', false);
+        authMessage('Choose a new password for your account.', false);
       }
     }
     SB.auth.onAuthStateChange((event, session) => {
@@ -1274,7 +1314,7 @@ async function initCloud() {
         authRecovery = true; setAuthMode('newpassword');
         $('authPanel').hidden = false; $('bAuth').setAttribute('aria-expanded', 'true');
         renderAuthPanel();
-        authMessage('Choose a new password for your Dugout account.', false);
+        authMessage('Choose a new password for your account.', false);
       }
       // Run database work outside Supabase's auth callback to avoid blocking token refresh.
       setTimeout(() => handleAuthSession(session), 0);
@@ -1354,7 +1394,7 @@ $('authResendConfirm').addEventListener('click', async () => {
     const options = redirect ? { emailRedirectTo: redirect } : {};
     const { error } = await SB.auth.resend({ type: 'signup', email: email, options: options });
     if (error) throw error;
-    authMessage('If that address has an unconfirmed Dugout account, a new confirmation email will arrive shortly.', false);
+    authMessage('If that address has an unconfirmed account, a new confirmation email will arrive shortly.', false);
   } catch (e) { authMessage(e.message || 'Could not resend the confirmation email. Try again later.', true); }
   finally { setAuthBusy(false); }
 });
@@ -1411,7 +1451,7 @@ $('authNewPasswordForm').addEventListener('submit', async e => {
     if (error) throw error;
     authRecovery = false; $('authNewPassword').value = '';
     setAuthMode('signin');
-    authMessage('Password updated. You can keep using Dugout.', false);
+    authMessage('Password updated. You can keep playing.', false);
   } catch (e2) { authMessage(e2.message || 'Could not update the password. Request a new reset link.', true); }
   finally { setAuthBusy(false); }
 });
@@ -1425,7 +1465,7 @@ $('authSignOut').addEventListener('click', async () => {
 });
 $('authDelete').addEventListener('click', async () => {
   if (!SB || !cloud.id || authBusy) return;
-  if (!confirm('Delete your Dugout account, cloud saves and leaderboard entries permanently? Games stored on this device are kept.')) return;
+  if (!confirm('Delete your account (all three games), cloud saves and leaderboard entries permanently? Games stored on this device are kept.')) return;
   setAuthBusy(true);
   try {
     const { error } = await SB.rpc('dugout_delete_my_account'); if (error) throw error;
@@ -1498,20 +1538,20 @@ function parseChallenge(search) {
 function drawShareCard(info) {
   const W = 1080, H = 1080, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
-  x.fillStyle = '#14301f'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#1d4a2f'; x.fillRect(0, 0, W, 16); x.fillRect(0, H - 16, W, 16);
+  x.fillStyle = SHARE_THEME.bg; x.fillRect(0, 0, W, H);
+  x.fillStyle = SHARE_THEME.band; x.fillRect(0, 0, W, 16); x.fillRect(0, H - 16, W, 16);
   const fit = (txt, maxW, size, weight) => { let f = size; do { x.font = weight + ' ' + f + 'px system-ui, -apple-system, Segoe UI, sans-serif'; f -= 2; } while (x.measureText(txt).width > maxW && f > 18); return txt; };
-  x.textAlign = 'center'; x.fillStyle = '#e0b84c'; fit('DUGOUT', 900, 84, '800'); x.fillText('DUGOUT', W / 2, 130);
-  x.fillStyle = '#f5f1e4'; fit(info.sub, 900, 36, '500'); x.fillText(info.sub, W / 2, 190);
-  x.fillStyle = '#f5f1e4'; fit(info.start, 900, 64, '700'); x.fillText(info.start, W / 2, 330);
-  x.fillStyle = '#e0b84c'; x.font = '700 48px system-ui, sans-serif'; x.fillText('\u2193  connect to  \u2193', W / 2, 410);
-  x.fillStyle = '#f5f1e4'; fit(info.target, 900, 64, '700'); x.fillText(info.target, W / 2, 500);
+  x.textAlign = 'center'; x.fillStyle = SHARE_THEME.accent; fit(GAME_NAME.toUpperCase(), 900, 84, '800'); x.fillText(GAME_NAME.toUpperCase(), W / 2, 130);
+  x.fillStyle = SHARE_THEME.ink; fit(info.sub, 900, 36, '500'); x.fillText(info.sub, W / 2, 190);
+  x.fillStyle = SHARE_THEME.ink; fit(info.start, 900, 64, '700'); x.fillText(info.start, W / 2, 330);
+  x.fillStyle = SHARE_THEME.accent; x.font = '700 48px system-ui, sans-serif'; x.fillText('\u2193  connect to  \u2193', W / 2, 410);
+  x.fillStyle = SHARE_THEME.ink; fit(info.target, 900, 64, '700'); x.fillText(info.target, W / 2, 500);
   const n = info.log.length + (info.won ? 1 : 0), size = 72, gap = 14, total = n * size + (n - 1) * gap; let px = (W - total) / 2;
-  info.log.forEach(ok => { x.fillStyle = ok ? '#3aa55d' : '#c8483f'; x.fillRect(px, 590, size, size); px += size + gap; });
-  if (info.won) { x.fillStyle = '#e0b84c'; x.fillRect(px, 590, size, size); x.fillStyle = '#14301f'; x.beginPath(); x.moveTo(px + 12, 640); x.lineTo(px + size / 2, 603); x.lineTo(px + size - 12, 640); x.lineTo(px + size - 12, 654); x.lineTo(px + 12, 654); x.closePath(); x.fill(); }
-  x.fillStyle = '#f5f1e4'; x.font = '800 120px system-ui, sans-serif'; x.fillText(info.score, W / 2, 830);
-  if (info.rarity) { x.fillStyle = '#e0b84c'; fit(info.rarity, 900, 44, '600'); x.fillText(info.rarity, W / 2, 910); }
-  x.fillStyle = '#9bb8a6'; x.font = '500 30px system-ui, sans-serif'; x.fillText('Can you connect them? ' + location.host + location.pathname, W / 2, 1010);
+  info.log.forEach(ok => { x.fillStyle = ok ? SHARE_THEME.ok : SHARE_THEME.bad; x.fillRect(px, 590, size, size); px += size + gap; });
+  if (info.won) { x.fillStyle = SHARE_THEME.accent; x.fillRect(px, 590, size, size); if (SPORT !== 'baseball') { x.font = '48px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; x.fillStyle = SHARE_THEME.bg; x.fillText(TERMS.glyph, px + size / 2, 640); } else { x.fillStyle = SHARE_THEME.bg; x.beginPath(); x.moveTo(px + 12, 640); x.lineTo(px + size / 2, 603); x.lineTo(px + size - 12, 640); x.lineTo(px + size - 12, 654); x.lineTo(px + 12, 654); x.closePath(); x.fill(); } }
+  x.fillStyle = SHARE_THEME.ink; x.font = '800 120px system-ui, sans-serif'; x.fillText(info.score, W / 2, 830);
+  if (info.rarity) { x.fillStyle = SHARE_THEME.accent; fit(info.rarity, 900, 44, '600'); x.fillText(info.rarity, W / 2, 910); }
+  x.fillStyle = SHARE_THEME.muted; x.font = '500 30px system-ui, sans-serif'; x.fillText('Can you connect them? ' + location.host + location.pathname, W / 2, 1010);
   return c;
 }
 function saveShareImage(info) {
@@ -1519,7 +1559,7 @@ function saveShareImage(info) {
   c.toBlob(blob => {
     if (!blob) return;
     const file = new File([blob], 'dugout-basketball-result.png', { type: 'image/png' });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: 'Dugout' }).catch(() => { }); return; } } catch (e) { /* fall through to download */ }
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: GAME_NAME }).catch(() => { }); return; } } catch (e) { /* fall through to download */ }
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dugout-basketball-result.png';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, 'image/png');
@@ -1624,12 +1664,12 @@ function render() {
   const rb = $('resultBox');
   if (!G.done) { rb.innerHTML = ''; }
   else {
-    const grid = G.log.map(e => e.ok ? '\ud83d\udfe9' : '\ud83d\udfe5').join('') + (G.won ? '\ud83c\udfe0' : '');
+    const grid = G.log.map(e => e.ok ? '\ud83d\udfe9' : '\ud83d\udfe5').join('') + (G.won ? TERMS.glyph : '');
     const score = (G.won ? G.log.length : 'X') + '/' + MAXA;
     const solvedPath = actualSolvedPath();
     const rarity = solvedPath ? scorePathRarity(solvedPath) : null;
     const rarityShare = rarity ? ' | ' + rarity.tier + ' path (' + rarity.score + '/99)' : '';
-    const sharetxt = 'Dugout Basketball ' + (G.mode === 'daily' ? '#' + dayLabel(G.id) + ' ' : '') + score + (G.hints ? ' \ud83d\udca1' + (G.hints > 1 ? ' x' + G.hints : '') : '') + rarityShare + '\n' + grid;
+    const sharetxt = GAME_NAME + ' ' + (G.mode === 'daily' ? '#' + dayLabel(G.id) + ' ' : '') + score + (G.hints ? ' \ud83d\udca1' + (G.hints > 1 ? ' x' + G.hints : '') : '') + rarityShare + '\n' + grid;
     let route = '';
     const path = pathBetween(G.start, G.target);
     if (path) {
@@ -1640,7 +1680,7 @@ function render() {
     if (G.arch) foot = '<div class="route">Archive puzzles do not count toward streaks or the leaderboard.</div>';
     if (G.mode === 'free' && run > 1) foot = '<div class="route">Run: ' + run + ' puzzles in a row.</div>';
     const popHtml = (G.mode === 'daily' && !G.arch) ? '<div class="popbox" id="popBox"></div>' : '';
-    rb.innerHTML = '<div class="result ' + (G.won ? 'win' : 'loss') + '"><h2>' + (G.won ? 'Safe at home' : 'Out at the plate') + '</h2>' +
+    rb.innerHTML = '<div class="result ' + (G.won ? 'win' : 'loss') + '"><h2>' + (G.won ? TERMS.win : TERMS.loss) + '</h2>' +
       '<div>' + (G.won ? 'Connected in ' + G.log.length + ' of ' + MAXA + ' guesses' + (G.hints ? ' with ' + G.hints + ' hint' + (G.hints === 1 ? '' : 's') : '') + '.' : 'You ran out of guesses.') + '</div>' +
       '<div class="grid">' + grid + '</div>' +
       (rarity ? '<div class="rarity-card"><div class="rarity-kicker">Your path rarity</div><div class="rarity-line"><span class="rarity-score">' + rarity.score + '/99</span><span class="rarity-tier">' + rarity.tier + '</span></div><div class="rarity-note">Based on the successful route you played, including its teammate connections — not the shortest possible route.</div></div>' : '') + route +
@@ -1695,7 +1735,7 @@ function drawOpts() {
   ul.innerHTML = opts.map((i, k) => '<li role="option" id="o' + k + '" data-i="' + i + '" aria-selected="' + (k === act) + '"><span>' + esc(P[i].n) + '</span><span class="y">' + yrs(i) + '</span></li>').join('');
   ul.hidden = false; $('q').setAttribute('aria-expanded', 'true'); if (act >= 0) $('q').setAttribute('aria-activedescendant', 'o' + act);
 }
-$('q').addEventListener('input', e => { const query = e.target.value; opts = search(query); act = -1; drawOpts(); say(query.trim().length >= 2 && !opts.length ? 'No matching players in this version of Dugout.' : ''); });
+$('q').addEventListener('input', e => { const query = e.target.value; opts = search(query); act = -1; drawOpts(); say(query.trim().length >= 2 && !opts.length ? 'No matching players in this game.' : ''); });
 $('q').addEventListener('focus', () => { if (window.innerWidth < 700) setTimeout(() => { try { $('guessBox').scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) { } }, 250); });
 $('q').addEventListener('keydown', e => {
   if (e.key === 'ArrowDown') { if (opts.length) { act = act < 0 ? 0 : (act + 1) % opts.length; drawOpts(); e.preventDefault(); } }
