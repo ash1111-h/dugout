@@ -75,6 +75,20 @@ jobs:
           npx playwright install --with-deps chromium
           node tests/browser_test.js "$RUNNER_TEMP/shots"
 
+      - name: Football and basketball pages (reproducible from committed data, audits, simulations)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/build_sports_pages.py .
+          git diff --exit-code -- football.html basketball.html || { echo 'football.html/basketball.html are out of date: run tools/build_sports_pages.py'; exit 1; }
+          node tests/audit_sports.js
+          node tests/sport_sim.js football.html 100 150 | tee football-sim.json
+          node tests/sport_sim.js basketball.html 100 150 | tee basketball-sim.json
+
+      - name: Sport page browser tests
+        shell: bash
+        run: node tests/sports_browser_test.js "$RUNNER_TEMP/sport-shots"
+
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4

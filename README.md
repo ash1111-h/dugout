@@ -150,3 +150,12 @@ The roster snapshot embedded in this version originated from Lahman Baseball Dat
 
 ### Supabase hardening (3.0)
 Verified against the live project with a rolled-back test transaction: inconsistent results and future dates are rejected, a finished daily result cannot be rewritten (first write wins), other users' rows cannot be written, the leaderboard returns opted-in players, and `dugout_delete_my_account()` removes a player's data and auth user. Limits: results are still reported by the browser (the server cannot replay a game), so a determined cheater can post a fake first result; "Prevent leaked passwords" must be switched on in the Supabase dashboard.
+
+
+## Football and basketball (3.0)
+`football.html` and `basketball.html` are the same game engine with different data, linked from a sport switcher on all three pages. They are generated from `index.html` by `tools/build_sports_pages.py` (every replacement is asserted), so a gameplay fix in the baseball page reaches all three after a rebuild.
+
+- **Football**: nflverse rosters 1999–2025 (`tools/build_nfl.py` -> `data/sports/nfl.json`, 11,705 players). Fame comes from career regular-season stats (yards, TDs, sacks, interceptions, tackles) as a percentile; linemen, kickers and punters have no stats there and rank low as endpoints. Rosters are end-of-season snapshots, so a player traded mid-season may appear only for his final team. Pre-1999 careers are cut off.
+- **Basketball**: seasons through 2016-17 from peasant98/TheNBACSV (Basketball-Reference), 2017-18 on from gabriel1200/site_Data tracking tables; fame from award history (MVP, All-NBA, DPOY, ROY and others), Win Shares and career length (`tools/build_nba.py` -> `data/sports/nba.json`, 3,865 players). **Limits:** the two sources have no shared player ID, so players are matched by name and age (a few people may be split or merged); from 2017-18 on only a player's final team each season is listed; players with fewer than one 20-game season are left out; ABA seasons are not covered.
+- Daily puzzles for both start 2026-11-23 and are generated deterministically; stats and saves are stored per sport in the browser. Accounts, cloud saves and the leaderboard remain baseball-only (their tables have no sport column yet).
+- Tests: `node tests/audit_sports.js`, `node tests/sport_sim.js <page>`, `node tests/sports_browser_test.js`. All run in CI.

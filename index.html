@@ -49,6 +49,10 @@ button { cursor: pointer; }
 .main-content { display: flex; flex-direction: column; gap: 18px; }
 
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
+.sports { display: flex; gap: 6px; margin: 10px 0 0; flex-wrap: wrap; }
+.sports a { padding: 7px 14px; border: 2px solid var(--ink); color: var(--ink); text-decoration: none; font-weight: 700; background: var(--surface); }
+.sports a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+.sports a:focus-visible { outline: 3px solid var(--grass); outline-offset: 2px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 230px; }
 .brand svg { flex: none; width: 30px; height: 30px; }
 h1 { font: 800 38px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; margin: 0; }
@@ -200,6 +204,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
       <button type="button" class="ibtn" id="bStats" aria-pressed="false" aria-expanded="false" aria-controls="statsP">Stats</button>
     </div>
   </header>
+  <nav class="sports" aria-label="Choose a sport"><a href="index.html" aria-current="page">⚾ Baseball</a><a href="football.html">🏈 Football</a><a href="basketball.html">🏀 Basketball</a></nav>
 
   <main id="main" class="main-content">
   <div class="acct" id="acct">
@@ -497,7 +502,7 @@ function secondsToPacificMidnight(now) {
   return Math.max(0, Math.ceil((pacificMidnightUTC(ds) - current.getTime()) / 1000));
 }
 function prevDay(ds) { const a = ds.split('-').map(Number); const t = new Date(Date.UTC(a[0], a[1] - 1, a[2] - 1)); return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0'); }
-function dayNumOf(ds) { const a = ds.split('-').map(Number); return Math.round((Date.UTC(a[0], a[1] - 1, a[2]) - Date.UTC(2026, 10, 22)) / 864e5) + 1; }
+function dayNumOf(ds) { const a = ds.split('-').map(Number); return Math.round((Date.UTC(a[0], a[1] - 1, a[2]) - DAILY_ANCHOR) / 864e5) + 1; }
 // Daily schedule starts on 2026-11-22 (Dugout 2.0 launch). The first 1,100 puzzles are prebuilt.
 // Later puzzles are generated in date order with deterministic seeds and an all-time
 // unordered-pair check, so different players on the same build receive the same puzzle
