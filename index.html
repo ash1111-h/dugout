@@ -52,6 +52,7 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .sports { display: flex; gap: 6px; margin: 10px 0 0; flex-wrap: wrap; }
 .sports a { padding: 7px 14px; border: 2px solid var(--ink); color: var(--ink); text-decoration: none; font-weight: 700; background: var(--surface); }
 .sports a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+@media (max-width: 420px) { .sports { gap: 4px; } .sports a { padding: 6px 8px; font-size: 14px; } }
 .sports a:focus-visible { outline: 3px solid var(--grass); outline-offset: 2px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 230px; }
 .brand svg { flex: none; width: 30px; height: 30px; }

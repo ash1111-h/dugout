@@ -234,3 +234,9 @@ begin
 end $$;
 revoke all on function public.dugout_delete_my_account() from public, anon;
 grant execute on function public.dugout_delete_my_account() to authenticated;
+
+-- ===== Football / basketball cloud tables (applied to the live project 2026-11-23) =====
+-- dugout_sport_saves / dugout_sport_results (PK user_id, sport, puzzle_date; sport in football|basketball),
+-- same RLS pattern and win-consistency check as baseball, first-write-wins trigger,
+-- dugout_sport_leaderboard(p_sport, p_mode, p_puzzle_date), and dugout_delete_my_account() extended to clear them.
+-- The full SQL is recorded in the Supabase migration "dugout_sport_tables_and_leaderboard".

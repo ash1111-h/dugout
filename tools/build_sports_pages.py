@@ -10,6 +10,16 @@ def rep(s, old, new, count=1):
     assert s.count(old) >= 1, 'pattern missing: ' + old[:80]
     return s.replace(old, new) if count == 0 else s.replace(old, new, count)
 
+THEMES = {
+ 'football': dict(
+   light='--bg:#e8ecf3;--surface:#f6f8fc;--ink:#111d33;--muted:#556178;--rule:#c5cddc;--dash:#93a0b8;--grass:#1d3f94;--grass-ink:#ffffff;',
+   dark='--bg:#0d1424;--surface:#16213a;--ink:#e6ebf5;--muted:#98a6c0;--rule:#29385a;--dash:#4a5c82;--grass:#7ea4ff;--grass-ink:#091226;',
+   svg='<svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="16" rx="13" ry="8" transform="rotate(-35 16 16)" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M11.5 20.5 20.5 11.5M14 14l4 4M12.5 15.5l4 4M15.5 12.5l4 4" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>'),
+ 'basketball': dict(
+   light='--bg:#f3ebe0;--surface:#fbf6ee;--ink:#2a1a10;--muted:#6d5a4a;--rule:#dccbb5;--dash:#b39a7f;--grass:#b5470f;--grass-ink:#ffffff;',
+   dark='--bg:#1a120c;--surface:#281c13;--ink:#f3e9dc;--muted:#bba58f;--rule:#4a3626;--dash:#7a604a;--grass:#ff9a5c;--grass-ink:#1a0d04;',
+   svg='<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3 16h26M16 3v26M6.5 6.5c5 4.5 5 14.5 0 19M25.5 6.5c-5 4.5-5 14.5 0 19" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>'),
+}
 SPORTS = {
  'football': dict(
    file='football.html', data='data/sports/nfl.json', title='Dugout Football', emoji='🏈', key='football',
@@ -77,10 +87,24 @@ def build(name, cfg):
     s = rep(s, "'dugout-seen'", "'dugout-%s-seen'" % cfg['key'], 0)
     s = rep(s, "readStoreKey('dugout-v2')", "null")
     s = rep(s, "localStorage.getItem('dugout-v1')", "null")
-    # accounts / leaderboard stay baseball-only for now (their tables have no sport column)
-    s = rep(s, "const SUPABASE_URL = 'https://odulayjarrfqaggemftw.supabase.co';", "const SUPABASE_URL = ''; // accounts and the leaderboard are baseball-only in 3.0")
-    s = rep(s, '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>', '')
-    s = rep(s, '</head>', '<style>#acct,#bBoard,#boardP{display:none!important}</style>\n</head>')
+    # accounts, cloud saves and the leaderboard use the sport tables (dugout_sport_saves / _results / _leaderboard)
+    k = cfg['key']
+    s = rep(s, "SB.from('dugout_daily_saves').select('puzzle_date,start_player_id,target_player_id,game_state')\n      .eq('user_id', userId)", "SB.from('dugout_sport_saves').select('puzzle_date,start_player_id,target_player_id,game_state')\n      .eq('user_id', userId).eq('sport', '%s')" % k)
+    s = rep(s, "SB.from('dugout_daily_results').select('puzzle_date,guesses_used,hints,won')\n      .eq('user_id', userId)", "SB.from('dugout_sport_results').select('puzzle_date,guesses_used,hints,won')\n      .eq('user_id', userId).eq('sport', '%s')" % k)
+    s = rep(s, "SB.from('dugout_daily_results')\n      .select('puzzle_date,guesses_used,hints,won').eq('user_id', userId)", "SB.from('dugout_sport_results')\n      .select('puzzle_date,guesses_used,hints,won').eq('user_id', userId).eq('sport', '%s')" % k)
+    s = rep(s, "user_id: userId, puzzle_date: date,\n    guesses_used", "user_id: userId, sport: '%s', puzzle_date: date,\n    guesses_used" % k)
+    s = rep(s, "SB.from('dugout_daily_results').upsert(rows.slice(i, i + 250), { onConflict: 'user_id,puzzle_date' })", "SB.from('dugout_sport_results').upsert(rows.slice(i, i + 250), { onConflict: 'user_id,sport,puzzle_date' })")
+    s = rep(s, "SB.from('dugout_daily_saves').upsert({\n      user_id: userId, puzzle_date: date,", "SB.from('dugout_sport_saves').upsert({\n      user_id: userId, sport: '%s', puzzle_date: date," % k)
+    s = rep(s, "game_state: g, updated_at: new Date().toISOString()\n    }, { onConflict: 'user_id,puzzle_date' })", "game_state: g, updated_at: new Date().toISOString()\n    }, { onConflict: 'user_id,sport,puzzle_date' })")
+    s = rep(s, "SB.from('dugout_daily_results').upsert({\n      user_id: userId, puzzle_date: date, guesses_used: entry.r,\n      hints: entry.h || 0, won: entry.r > 0\n    }, { onConflict: 'user_id,puzzle_date' })", "SB.from('dugout_sport_results').upsert({\n      user_id: userId, sport: '%s', puzzle_date: date, guesses_used: entry.r,\n      hints: entry.h || 0, won: entry.r > 0\n    }, { onConflict: 'user_id,sport,puzzle_date' })" % k)
+    s = rep(s, "SB.rpc('dugout_leaderboard', { p_mode: boardTab,", "SB.rpc('dugout_sport_leaderboard', { p_sport: '%s', p_mode: boardTab," % k)
+    assert 'dugout_daily_' not in s.split('/*GEN:BEGIN*/')[1] or True
+    left = [m for m in re.findall(r"dugout_daily_\w+", s)]
+    assert not left, left
+    th = THEMES[name]
+    css = ':root{%s}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){%s}}:root[data-theme="dark"]{%s}' % (th['light'], th['dark'], th['dark'])
+    s = rep(s, '</head>', '<style>h1{font-size:34px;overflow-wrap:anywhere}@media (max-width:420px){h1{font-size:24px}}' + css + '</style>\n</head>')
+    s, n = re.subn(r'<svg viewBox="0 0 32 32" aria-hidden="true">.*?</svg>', lambda m: th['svg'], s, count=1, flags=re.S); assert n == 1
     return s
 
 for name, cfg in SPORTS.items():

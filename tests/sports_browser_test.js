@@ -25,7 +25,7 @@ const PAGES = [['football', 'Dugout Football', '🏈'], ['basketball', 'Dugout B
       check(`[${label}] title and heading`, (await page.title()) === title && (await page.textContent('h1')) === title);
       const links = await page.locator('nav.sports a').allTextContents();
       check(`[${label}] sport switcher shows all three, current page marked`, links.length === 3 && (await page.locator('nav.sports a[aria-current="page"]').textContent()).includes(title.split(' ')[1]), links.join(' | '));
-      check(`[${label}] account panel and board hidden (baseball-only)`, !(await page.locator('#acct').isVisible()) && !(await page.locator('#bBoard').isVisible()));
+      check(`[${label}] account panel present and uses the sport tables`, (await page.locator('#acct').count()) === 1 && (await page.content()).includes("dugout_sport_results") && !(await page.content()).includes('dugout_daily_results'));
       check(`[${label}] no baseball wording on the page`, !/baseball|MLB|Lahman|innings/i.test((await page.evaluate(() => document.body.innerText)).replace('⚾ Baseball', '')));
       const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
       check(`[${label}] no horizontal overflow`, ov.sw <= ov.iw + 1, `${ov.sw} vs ${ov.iw}`);
