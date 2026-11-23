@@ -239,7 +239,7 @@ select { background: var(--surface); border: 1px solid var(--rule); border-radiu
         <label class="optin"><input id="leaderboardOptIn" type="checkbox"> Show my display name and scores on the public leaderboard</label>
         <div class="auth-actions"><button type="button" class="btn" id="saveProfile">Save profile</button></div>
       </div>
-      <div class="auth-actions"><button type="button" class="btn ghost" id="authSignOut">Sign out</button></div>
+      <div class="auth-actions"><button type="button" class="btn ghost" id="authSignOut">Sign out</button><button type="button" class="btn ghost" id="authDelete">Delete account</button></div>
     </div>
     <div class="auth-note" id="authMsg" role="status" aria-live="polite"></div>
     <p class="auth-note">Guest play does not require an account. Accounts use Supabase Auth; passwords are handled by Supabase and are not saved in this game. Guest and signed-in progress are kept separately on shared devices.</p>
@@ -1127,7 +1127,7 @@ async function renderBoard() {
 }
 function setAuthBusy(value) {
   authBusy = !!value;
-  ['authSubmit','authResetSubmit','authNewPasswordSubmit','authSignOut','saveProfile',
+  ['authSubmit','authResetSubmit','authNewPasswordSubmit','authSignOut','authDelete','saveProfile',
    'authSignInMode','authSignUpMode','authForgot','authResendConfirm','authBackToSignIn',
    'authEmail','authPassword','authDisplayName','authResetEmail','authNewPassword',
    'profileName','leaderboardOptIn'].forEach(id => {
@@ -1328,6 +1328,17 @@ $('authSignOut').addEventListener('click', async () => {
   setAuthBusy(true);
   try { const { error } = await SB.auth.signOut(); if (error) throw error; authMessage('Signed out. Your guest games remain on this device.', false); }
   catch (e) { authMessage(e.message || 'Could not sign out.', true); }
+  finally { setAuthBusy(false); }
+});
+$('authDelete').addEventListener('click', async () => {
+  if (!SB || !cloud.id || authBusy) return;
+  if (!confirm('Delete your Dugout account, cloud saves and leaderboard entries permanently? Games stored on this device are kept.')) return;
+  setAuthBusy(true);
+  try {
+    const { error } = await SB.rpc('dugout_delete_my_account'); if (error) throw error;
+    try { await SB.auth.signOut(); } catch (_) {}
+    authMessage('Account deleted. Your guest games remain on this device.', false);
+  } catch (e) { authMessage(e.message || 'Could not delete the account.', true); }
   finally { setAuthBusy(false); }
 });
 $('saveProfile').addEventListener('click', async () => {

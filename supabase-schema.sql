@@ -206,3 +206,31 @@ $dugout_fn$;
 revoke all on function public.dugout_leaderboard(text, date) from public, anon, authenticated;
 grant execute on function public.dugout_leaderboard(text, date) to authenticated;
 notify pgrst, 'reload schema';
+
+-- ===== Dugout 3.0 hardening (applied to the live project 2026-11-22) =====
+alter table public.dugout_daily_results
+  add constraint dugout_results_win_consistent
+  check ((won and guesses_used between 1 and 6) or (not won and guesses_used = 0));
+
+create or replace function public.dugout_results_keep_first()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  return old;  -- first write wins; upserts succeed but keep the original row
+end $$;
+revoke all on function public.dugout_results_keep_first() from public, anon, authenticated;
+create trigger dugout_results_keep_first
+  before update on public.dugout_daily_results
+  for each row execute function public.dugout_results_keep_first();
+
+create or replace function public.dugout_delete_my_account()
+returns void language plpgsql security definer set search_path = '' as $$
+declare uid uuid := (select auth.uid());
+begin
+  if uid is null then raise exception 'not signed in'; end if;
+  delete from public.dugout_daily_results where user_id = uid;
+  delete from public.dugout_daily_saves where user_id = uid;
+  delete from public.dugout_profiles where user_id = uid;
+  delete from auth.users where id = uid;
+end $$;
+revoke all on function public.dugout_delete_my_account() from public, anon;
+grant execute on function public.dugout_delete_my_account() to authenticated;

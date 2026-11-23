@@ -147,3 +147,6 @@ The roster snapshot embedded in this version originated from Lahman Baseball Dat
 - **Frozen live schedule:** `data/daily-schedule-v1.json` is the published Daily schedule; `tests/audit_db.js` fails if it differs from `main`. `tools/apply_schedule.py` writes it into rebuilt data.
 - **CI:** `.github/workflows/dugout-checks.yml` rebuilds the data from the pinned pre-2.0 page (`d32596a`) and checks it matches `index.html` exactly, then runs syntax, audit, simulation and Playwright browser tests. `.github/workflows/offseason-refresh.yml` is a manual job that rebuilds from new Lahman CSVs and opens a draft PR.
 - Compare pool/era settings with `node tests/pool_sim.js index.html 150`.
+
+### Supabase hardening (3.0)
+Verified against the live project with a rolled-back test transaction: inconsistent results and future dates are rejected, a finished daily result cannot be rewritten (first write wins), other users' rows cannot be written, the leaderboard returns opted-in players, and `dugout_delete_my_account()` removes a player's data and auth user. Limits: results are still reported by the browser (the server cannot replay a game), so a determined cheater can post a fake first result; "Prevent leaked passwords" must be switched on in the Supabase dashboard.
