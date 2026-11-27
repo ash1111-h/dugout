@@ -1516,6 +1516,8 @@ function startDaily(ds) {
     return;
   }
   newGame('daily', pz, ds, ds !== TODAY);
+  // A day you already played on its own day (this device or, when signed in, any device) is final: show the result, not a fresh replay.
+  if (ds !== TODAY && store.days[ds]) { const d = store.days[ds]; G.locked = true; G.done = true; G.won = d.r > 0; G.hints = d.h; render(); return; }
   const bucket = ds === TODAY ? store.daily : store.arch;
   const rawSave = bucket[ds];
   const sv = matchSaved(rawSave, pz.start, pz.target);
@@ -1534,23 +1536,49 @@ function parseChallenge(search) {
   const d = bfsS(s)[t];
   return d >= 2 && d <= 6 ? { start: s, target: t, lane: 'challenge' } : null;
 }
+function playedChain() {
+  // The route actually played (successful guesses only), with the team-season each link shared.
+  const nodes = [{ n: dn(G.start) }]; let c = G.start;
+  for (const e of G.log) if (e.ok) { nodes.push({ n: dn(e.pid), via: tsLabel(bestShared(c, e.pid).t) }); c = e.pid; }
+  if (G.won) { if (c !== G.target) nodes.push({ n: dn(G.target), via: tsLabel(bestShared(c, G.target).t) }); }
+  else nodes.push({ n: dn(G.target), miss: true });
+  return nodes;
+}
 function drawShareCard(info) {
   const W = 1080, H = 1080, c = document.createElement('canvas'); c.width = W; c.height = H;
-  const x = c.getContext('2d');
-  x.fillStyle = SHARE_THEME.bg; x.fillRect(0, 0, W, H);
-  x.fillStyle = SHARE_THEME.band; x.fillRect(0, 0, W, 16); x.fillRect(0, H - 16, W, 16);
-  const fit = (txt, maxW, size, weight) => { let f = size; do { x.font = weight + ' ' + f + 'px system-ui, -apple-system, Segoe UI, sans-serif'; f -= 2; } while (x.measureText(txt).width > maxW && f > 18); return txt; };
-  x.textAlign = 'center'; x.fillStyle = SHARE_THEME.accent; fit(GAME_NAME.toUpperCase(), 900, 84, '800'); x.fillText(GAME_NAME.toUpperCase(), W / 2, 130);
-  x.fillStyle = SHARE_THEME.ink; fit(info.sub, 900, 36, '500'); x.fillText(info.sub, W / 2, 190);
-  x.fillStyle = SHARE_THEME.ink; fit(info.start, 900, 64, '700'); x.fillText(info.start, W / 2, 330);
-  x.fillStyle = SHARE_THEME.accent; x.font = '700 48px system-ui, sans-serif'; x.fillText('\u2193  connect to  \u2193', W / 2, 410);
-  x.fillStyle = SHARE_THEME.ink; fit(info.target, 900, 64, '700'); x.fillText(info.target, W / 2, 500);
-  const n = info.log.length + (info.won ? 1 : 0), size = 72, gap = 14, total = n * size + (n - 1) * gap; let px = (W - total) / 2;
-  info.log.forEach(ok => { x.fillStyle = ok ? SHARE_THEME.ok : SHARE_THEME.bad; x.fillRect(px, 590, size, size); px += size + gap; });
-  if (info.won) { x.fillStyle = SHARE_THEME.accent; x.fillRect(px, 590, size, size); if (SPORT !== 'baseball') { x.font = '48px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; x.fillStyle = SHARE_THEME.bg; x.fillText(TERMS.glyph, px + size / 2, 640); } else { x.fillStyle = SHARE_THEME.bg; x.beginPath(); x.moveTo(px + 12, 640); x.lineTo(px + size / 2, 603); x.lineTo(px + size - 12, 640); x.lineTo(px + size - 12, 654); x.lineTo(px + 12, 654); x.closePath(); x.fill(); } }
-  x.fillStyle = SHARE_THEME.ink; x.font = '800 120px system-ui, sans-serif'; x.fillText(info.score, W / 2, 830);
-  if (info.rarity) { x.fillStyle = SHARE_THEME.accent; fit(info.rarity, 900, 44, '600'); x.fillText(info.rarity, W / 2, 910); }
-  x.fillStyle = SHARE_THEME.muted; x.font = '500 30px system-ui, sans-serif'; x.fillText('Can you connect them? ' + location.host + location.pathname, W / 2, 1010);
+  const x = c.getContext('2d'), T = SHARE_THEME, FONT = 'system-ui, -apple-system, Segoe UI, sans-serif';
+  x.fillStyle = T.bg; x.fillRect(0, 0, W, H);
+  x.fillStyle = T.band; x.fillRect(0, 0, W, 16); x.fillRect(0, H - 16, W, 16);
+  const fit = (txt, maxW, size, weight) => { let f = size; do { x.font = weight + ' ' + f + 'px ' + FONT; f -= 2; } while (x.measureText(txt).width > maxW && f > 16); return txt; };
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  x.fillStyle = T.accent; fit(GAME_NAME.toUpperCase(), 900, 76, '800'); x.fillText(GAME_NAME.toUpperCase(), W / 2, 112);
+  x.fillStyle = T.ink; fit(info.sub, 900, 32, '500'); x.fillText(info.sub, W / 2, 160);
+  // the path you took, top to bottom
+  const nodes = info.path || [{ n: info.start }, { n: info.target }], n = nodes.length;
+  const nodeH0 = 70, gapH0 = 46, total0 = n * nodeH0 + (n - 1) * gapH0, avail = 520, sc = Math.min(1.3, avail / total0);
+  const nodeH = nodeH0 * sc, gapH = gapH0 * sc; let y = 200 + (avail - total0 * sc) / 2;
+  nodes.forEach((nd, k) => {
+    if (k > 0) {
+      x.fillStyle = nd.miss ? T.bad : T.accent;
+      if (nd.via) { fit('↓  ' + nd.via, 900, 28 * sc + 4, '500'); x.fillText('↓  ' + nd.via, W / 2, y + gapH * 0.68); }
+      else { fit('↓  not connected', 900, 28 * sc + 4, '500'); x.fillText('↓  not connected', W / 2, y + gapH * 0.68); }
+      y += gapH;
+    }
+    x.fillStyle = nd.miss ? T.muted : T.ink; const label = (k === 0 ? '' : '') + nd.n;
+    fit(label, 900, Math.max(22, 54 * sc + 6), k === 0 || k === n - 1 ? '800' : '600'); x.fillText(label, W / 2, y + nodeH * 0.72);
+    y += nodeH;
+  });
+  // result squares
+  const cnt = info.log.length + (info.won ? 1 : 0), size = 54, gap = 10, total = cnt * size + (cnt - 1) * gap; let px = (W - total) / 2, gy = 770;
+  info.log.forEach(ok => { x.fillStyle = ok ? T.ok : T.bad; x.fillRect(px, gy, size, size); px += size + gap; });
+  if (info.won) {
+    x.fillStyle = T.accent; x.fillRect(px, gy, size, size);
+    if (SPORT !== 'baseball') { x.font = '38px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; x.fillStyle = T.bg; x.fillText(TERMS.glyph, px + size / 2, gy + 41); }
+    else { x.fillStyle = T.bg; x.beginPath(); x.moveTo(px + 9, gy + 30); x.lineTo(px + size / 2, gy + 9); x.lineTo(px + size - 9, gy + 30); x.lineTo(px + size - 9, gy + 42); x.lineTo(px + 9, gy + 42); x.closePath(); x.fill(); }
+  }
+  x.fillStyle = T.ink; x.font = '800 104px ' + FONT; x.fillText(info.score, W / 2, 925);
+  if (info.rarity) { x.fillStyle = T.accent; fit(info.rarity, 900, 38, '600'); x.fillText(info.rarity, W / 2, 985); }
+  x.fillStyle = T.muted; fit('Can you connect them? ' + location.host + location.pathname, 960, 26, '500'); x.fillText('Can you connect them? ' + location.host + location.pathname, W / 2, 1038);
   return c;
 }
 function saveShareImage(info) {
@@ -1618,7 +1646,8 @@ function fillArchive() {
   const sel = $('arch'); let h = '<option value="' + TODAY + '">Today, #' + dayLabel(TODAY) + '</option>', ds = TODAY;
   for (let k = 0; k < 60; k++) {
     ds = prevDay(ds); const n = dayLabel(ds); if (n < 1) break;
-    const sv = store.arch[ds]; const tag = sv && sv.done ? (sv.won ? ' (solved ' + sv.log.length + '/6)' : ' (missed)') : '';
+    const pd = store.days[ds], sv = store.arch[ds];
+    const tag = pd ? (pd.r > 0 ? ' (played: ' + pd.r + '/' + MAXA + ')' : ' (played: missed)') : (sv && sv.done ? (sv.won ? ' (solved ' + sv.log.length + '/' + MAXA + ')' : ' (missed)') : '');
     h += '<option value="' + ds + '">#' + n + ' ' + DAYS[weekdayOf(ds)].slice(0, 3) + ' ' + ds.slice(5) + tag + '</option>';
   }
   sel.innerHTML = h; sel.value = G.id;
@@ -1630,6 +1659,7 @@ function render() {
   $('runLbl').textContent = run ? 'Run: ' + run + ' in a row' : '';
   if (mode === 'daily') { fillArchive(); const r = recipeFor(G.id); $('dayTag').textContent = DAYS[weekdayOf(G.id)] + ', ' + r.name; }
   document.querySelector('.wrap').classList.toggle('done', G.done);
+  if (G.locked) { renderLocked(); return; }
   let ph = '<span class="lbl">Guesses</span>';
   for (let i = 0; i < MAXA; i++) { const e = G.log[i]; ph += '<span class="pip ' + (e ? (e.ok ? 'ok' : 'bad') : '') + '"></span>'; }
   if (mode === 'daily') ph += '<span class="dl">Puzzle #' + dayLabel(G.id) + '</span>';
@@ -1690,7 +1720,7 @@ function render() {
       const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); };
       try { navigator.clipboard.writeText(sharetxt).then(() => { $('bShare').textContent = 'Copied'; }, fallback); } catch (e) { fallback(); }
     };
-    $('bImg').onclick = () => saveShareImage({ start: dn(G.start), target: dn(G.target), log: G.log.map(e => !!e.ok), won: G.won, score: score, sub: G.mode === 'daily' ? 'Puzzle #' + dayLabel(G.id) : (G.mode === 'free' ? 'Unlimited' : 'Challenge'), rarity: rarity ? rarity.tier + ' path (' + rarity.score + '/99)' : '' });
+    $('bImg').onclick = () => saveShareImage({ start: dn(G.start), target: dn(G.target), path: playedChain(), log: G.log.map(e => !!e.ok), won: G.won, score: score, sub: G.mode === 'daily' ? 'Puzzle #' + dayLabel(G.id) : (G.mode === 'free' ? 'Unlimited' : 'Challenge'), rarity: rarity ? rarity.tier + ' path (' + rarity.score + '/99)' : '' });
     $('bChal').onclick = () => {
       const url = challengeUrl(), ta = $('shareTxt'); ta.value = url;
       const fallback = () => { ta.hidden = false; ta.focus(); ta.select(); };
@@ -1700,6 +1730,22 @@ function render() {
     if ($('bAgain')) $('bAgain').onclick = startFree;
     if ($('bToday')) $('bToday').onclick = () => startDaily(TODAY);
   }
+  renderStats();
+}
+function renderLocked() {
+  const d = store.days[G.id] || { r: 0, h: 0 };
+  let ph = '<span class="lbl">Guesses</span>';
+  for (let i = 0; i < MAXA; i++) ph += '<span class="pip ' + (d.r ? (i < d.r ? 'ok' : '') : 'bad') + '"></span>';
+  $('pips').innerHTML = ph + '<span class="dl">Puzzle #' + dayLabel(G.id) + '</span>';
+  $('top').innerHTML = '<div class="card start"><div class="k">Start</div><div class="nm">' + esc(P[G.start].n) + '</div><div class="yrs">' + yrs(G.start) + '</div>' + chips(G.start) + '</div>';
+  $('bottom').innerHTML = '<div class="via gap"><span>You already played this one</span></div><div class="card target' + (G.won ? ' solved' : '') + '"><div class="k">Target</div><div class="nm">' + esc(P[G.target].n) + '</div><div class="yrs">' + yrs(G.target) + '</div>' + chips(G.target) + '</div>';
+  $('guessBox').hidden = true; $('hintMsg').hidden = true;
+  const path = pathBetween(G.start, G.target); let route = '';
+  if (path) route = '<div class="route">One standard route (' + (path.length - 1) + ' links):<ol>' + path.map((x, k) => '<li><b>' + esc(dn(x)) + '</b>' + (k > 0 ? ', with ' + esc(dn(path[k - 1])) + ' in ' + esc(tsLabel(bestShared(path[k - 1], x).t)) : '') + '</li>').join('') + '</ol></div>';
+  $('resultBox').innerHTML = '<div class="result ' + (G.won ? 'win' : 'loss') + '"><h2>Already played</h2><div>' +
+    (G.won ? 'You connected this one in ' + d.r + ' of ' + MAXA + ' guesses' + (d.h ? ' with ' + d.h + ' hint' + (d.h === 1 ? '' : 's') : '') + '.' : 'You did not connect this one.') + '</div>' + route +
+    '<div class="route">Puzzles you played on their own day are final and cannot be replayed. The Puzzle menu is for days you missed.</div></div>';
+  document.querySelector('.wrap').classList.add('done');
   renderStats();
 }
 function renderStats() {

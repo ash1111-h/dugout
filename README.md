@@ -168,3 +168,6 @@ Verified against the live project with a rolled-back test transaction: inconsist
 
 ### Names and wording per sport
 Baseball is **Dugout** ("Safe at home" / "Out at the plate"), football is **Huddle** ("Touchdown" / "Turnover", 🏈 on the share card) and basketball is **Fast Break** ("Bucket" / "Airball", 🏀). Each page has its own share-image palette and browser theme colour. The shared account panel is called "My games". These are set in `tools/build_sports_pages.py`. Visual polish (soft shadows, rounded controls, focus glow, win/loss result cards, reduced-motion and forced-colors support) lives in the shared stylesheet in `index.html`.
+
+### Played days are final; share image shows your path
+A day you already played on its own day (on this device, or on any device when signed in, because results sync) opens as an "Already played" result in the Puzzle menu instead of a fresh puzzle; only days you missed can be played from the menu, and those still don't count toward streaks. The saved share image now draws the route you actually took (successful guesses only, with the team-season each link shared). `node tests/locked_and_share_test.js` covers both. Limit: archive (missed-day) progress is still stored per device.
